@@ -3,10 +3,44 @@
 #include <Adafruit_NeoPixel.h>
 
 
-#define LEDPIN 9
-#define NBLEDS 8
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NBLEDS, LEDPIN, NEO_GRB + NEO_KHZ800);
+#define LEDPIN 2
+#define NBLEDS 52
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NBLEDS, LEDPIN, NEO_GRBW + NEO_KHZ800);
 
+// declare led index tables for animations
+int feederPos[] =
+{
+  7,6,5,4,3,2,1,0
+  };
+
+int feederStatusPos[]=
+{
+  8,9,10
+  };
+int chainPathPos[] =
+{
+  11,12,13,14,  15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,40,41,42,43
+  };
+int cutStatusPos[] =
+{
+  31,32,33
+  };
+int ejectionStatusPos[] =
+{
+  34,35,36
+  };
+int receptionStatusPos[] =
+{
+  37,38,39
+  };
+int receptionPos[] =
+{
+  44,45,46,47,48,49,50,51
+  };
+
+#define FEEDER_NBSHEET_MAX 150
+#define RECEPTION_NBSHEET_MAX 150
+   
 char *msgTab[] =
 {
   "stop",
@@ -27,9 +61,15 @@ char incomingByte;
 bool stringComplete = false;
 bool isRunning = false;
 int functionRun = 0 ;
-int fill = 0 ;
-unsigned long previousTime;
+int chainStep = 0 ;
+int fillStep = 0;
+int emptyStep = 0;
+unsigned long previousTimeChain;
+unsigned long previousTimeFill;
+unsigned long previousTimeEmpty;
+unsigned long previousTimeStar;
 unsigned long actualTime;
+bool statusToggle = false;
 
 
 // Use the MD_MAX72XX library to Display scrolling text
@@ -62,7 +102,7 @@ unsigned long actualTime;
 // need to be adapted
 //
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
-#define MAX_DEVICES 4
+#define MAX_DEVICES 8
 #define CLK_PIN   52  // or SCK
 #define DATA_PIN  51  // or MOSI
 #define CS_PIN    53  // or SS
@@ -101,7 +141,7 @@ void setup()
       for (int i =0 ; i < NBLEDS ; i = i+2) 
       {
         //if ( i%2 == 0)
-          strip.setPixelColor(i,255,0,0);
+          strip.setPixelColor(i,0,0,0,255);
         }    
         
   strip.show(); // Initialize all pixels to 'off'
@@ -113,6 +153,42 @@ void setup()
   prevTimeDemo = millis();
   strcpy (cmd , msgTab[8]);
 }
+
+void SetFeeder(int sheetNumberRemaining)
+{
+  // 125 because feeder got 8 steps
+  int ratio = (int)((sheetNumberRemaining*1000/FEEDER_NBSHEET_MAX)/125);
+  int sizeleds = (sizeof(feederPos)/sizeof(feederPos[0]));
+  for ( int i = 0 ; i < sizeleds ; i++)
+  {
+    if ( (i+1)<= ratio)
+      strip.setPixelColor(feederPos[i], 255,0,0);
+    else
+      strip.setPixelColor(feederPos[i], 0,0,0);
+    }
+}
+
+void SetReception(int sheetNumberRemaining)
+{
+  int ratio = (int)((sheetNumberRemaining*1000/RECEPTION_NBSHEET_MAX)/125); 
+  int sizeleds = (sizeof(receptionPos)/sizeof(receptionPos[0])); 
+  for ( int i = 0 ; i < sizeleds ; i++)
+  {
+    if ( (i+1)<= ratio)
+      strip.setPixelColor(receptionPos[i], 255,0,0);
+    else
+      strip.setPixelColor(receptionPos[i], 0,0,0);
+    }
+}
+
+void SetStatusFeeder ( int statusFeeder )
+{
+    int sizeleds = (sizeof(feederStatusPos)/sizeof(feederStatusPos[0]));
+    if ( statusFeeder == 0 )
+      for (int i =0 ; i < sizeleds ; i++)
+        strip.setPixelColor(feederStatusPos[i], 0,0,0);
+    
+  };
 
 void Stop()
 {
@@ -134,6 +210,7 @@ void Reset()
 
 void Run()
 {
+    actualTime = millis();
     for (int i =0 ; i < NBLEDS ; i++)
       strip.setPixelColor(i, 0,255,0);
     strip.show();
@@ -142,31 +219,31 @@ void Run()
 void Fill()
 {
     actualTime = millis();
-    if (isRunning &&(functionRun == 2) && ((actualTime - previousTime) > 250))
+    int sizeleds = (sizeof(feederPos)/sizeof(feederPos[0]));
+    if (isRunning &&(functionRun == 3 || functionRun == 2) && ((actualTime - previousTimeFill) > 250))
     { 
-     for (int i =0 ; i < NBLEDS ; i++)
-      strip.setPixelColor(i, 0,0,0);
-     for (int i =0 ; i <= fill ; i++)
-      strip.setPixelColor(i, 255,0,0);
-    strip.show();
-    fill = (fill + 1 ) % NBLEDS;
-    previousTime = actualTime;   
+     for (int i =0 ; i < sizeleds ; i++)
+      strip.setPixelColor(feederPos[i], 0,0,0);
+     for (int i =0 ; i <= fillStep ; i++)
+      strip.setPixelColor(feederPos[i], 255,0,0);
+    //strip.show();
+    fillStep = (fillStep + 1 ) % sizeleds;
+    previousTimeFill = actualTime;   
     } 
 }
 
 void Slide()
 {
     actualTime = millis();
-    if (isRunning &&(functionRun == 3) && ((actualTime - previousTime) > 100))
+    int sizeleds = (sizeof(chainPathPos)/sizeof(chainPathPos[0]));
+    if (isRunning &&(functionRun == 3) && ((actualTime - previousTimeChain) > 25))
     { 
-              for (int i =0 ; i < NBLEDS ; i++)
-    strip.setPixelColor(i, 0,0,0);
-        strip.setPixelColor(fill -2 , 0,50,0);
-    strip.setPixelColor(fill, 0,255,0);
-        strip.setPixelColor(fill + 2, 0,50,0);
-    strip.show();
-    fill = (fill + 2 ) % (NBLEDS+6) ;
-    previousTime = actualTime;   
+        for (int i =0 ; i < sizeleds ; i++)
+            strip.setPixelColor(chainPathPos[i], 0,0,0,0);
+        strip.setPixelColor(chainPathPos[chainStep], 0,0,0,255);
+    //strip.show();
+    chainStep = (chainStep + 1 ) % (sizeleds) ;
+    previousTimeChain = actualTime;   
     }
   
 }
@@ -174,27 +251,28 @@ void Slide()
 void Empty()
 {
     actualTime = millis();
-    if (isRunning &&(functionRun == 4) && ((actualTime - previousTime) > 250))
+    int sizeleds = (sizeof(receptionPos)/sizeof(receptionPos[0]));
+    if (isRunning &&(functionRun == 3 ||functionRun == 4 ) && ((actualTime - previousTimeEmpty) > 250))
     { 
-     for (int i =0 ; i < NBLEDS ; i++)
-      strip.setPixelColor(i, 255,0,0);
-     for (int i =0 ; i <= fill ; i++)
-      strip.setPixelColor(i, 0,0,0);
-    strip.show();
-    fill = (fill + 1 ) % NBLEDS;
-    previousTime = actualTime;   
+     for (int i =0 ; i < sizeleds ; i++)
+      strip.setPixelColor(receptionPos[i], 255,0,0);
+     for (int i =0 ; i <= emptyStep ; i++)
+      strip.setPixelColor(receptionPos[i], 0,0,0);
+    //strip.show();
+    emptyStep = (emptyStep + 1 ) % sizeleds;
+    previousTimeEmpty = actualTime;   
     }  
 }
   
 void Star()
 {
     actualTime = millis();
-    if (isRunning && (functionRun == 1) && ((actualTime - previousTime) > 150))
+    if (isRunning && (functionRun == 1) && ((actualTime - previousTimeStar) > 150))
     {
         for (int i =0 ; i < NBLEDS ; i++)
-    strip.setPixelColor(i, random(0,15)*16, random(0,15)*16, random(0,15)*16);
+    strip.setPixelColor(i, random(0,15)*16, random(0,15)*16, random(0,15)*16, 0);
     strip.show();
-    previousTime = actualTime;   
+    previousTimeStar = actualTime;   
     }
   }
  
@@ -421,6 +499,7 @@ void loop()
   Fill();
   Slide();
   Empty();
+  strip.show();
   bInit = scrollText(bInit, cmd);
 }
 
