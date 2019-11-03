@@ -7,6 +7,12 @@
 #define NBLEDS 52
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NBLEDS, LEDPIN, NEO_GRBW + NEO_KHZ800);
 
+uint32_t red = strip.Color(255, 0, 0, 0);
+uint32_t green = strip.Color(0, 255, 0, 0);
+uint32_t blue = strip.Color(0, 0, 255, 0);
+uint32_t white = strip.Color(0, 0, 0, 255);
+uint32_t black = strip.Color(0, 0, 0, 0);
+
 // declare led index tables for animations
 int feederPos[] =
 {
@@ -60,6 +66,7 @@ int cmdIndex;
 char incomingByte;
 bool stringComplete = false;
 bool isRunning = false;
+bool isResetOn = false;
 int functionRun = 0 ;
 int chainStep = 0 ;
 int fillStep = 0;
@@ -68,6 +75,7 @@ unsigned long previousTimeChain;
 unsigned long previousTimeFill;
 unsigned long previousTimeEmpty;
 unsigned long previousTimeStar;
+unsigned long previousTimeReset;
 unsigned long actualTime;
 bool statusToggle = false;
 
@@ -138,10 +146,10 @@ void setup()
 {
   Serial.begin(9600);
   strip.begin();
-      for (int i =0 ; i < NBLEDS ; i = i+2) 
+      for (int i =0 ; i < NBLEDS ; i ++) 
       {
         //if ( i%2 == 0)
-          strip.setPixelColor(i,0,0,0,255);
+          strip.setPixelColor(i,0,0,0,128);
         }    
         
   strip.show(); // Initialize all pixels to 'off'
@@ -162,9 +170,9 @@ void SetFeeder(int sheetNumberRemaining)
   for ( int i = 0 ; i < sizeleds ; i++)
   {
     if ( (i+1)<= ratio)
-      strip.setPixelColor(feederPos[i], 255,0,0);
+      strip.setPixelColor(feederPos[i], red);
     else
-      strip.setPixelColor(feederPos[i], 0,0,0);
+      strip.setPixelColor(feederPos[i], black);
     }
 }
 
@@ -175,45 +183,133 @@ void SetReception(int sheetNumberRemaining)
   for ( int i = 0 ; i < sizeleds ; i++)
   {
     if ( (i+1)<= ratio)
-      strip.setPixelColor(receptionPos[i], 255,0,0);
+      strip.setPixelColor(receptionPos[i], red);
     else
-      strip.setPixelColor(receptionPos[i], 0,0,0);
+      strip.setPixelColor(receptionPos[i], black);
     }
 }
 
-void SetStatusFeeder ( int statusFeeder )
+void SetStatusFeeder(int statusFeeder)
 {
-    int sizeleds = (sizeof(feederStatusPos)/sizeof(feederStatusPos[0]));
-    if ( statusFeeder == 0 )
-      for (int i =0 ; i < sizeleds ; i++)
-        strip.setPixelColor(feederStatusPos[i], 0,0,0);
-    
-  };
+  int sizeleds = (sizeof(feederStatusPos) / sizeof(feederStatusPos[0]));
+    switch (statusFeeder)
+  {
+  case 0:
+          strip.setPixelColor(feederStatusPos[i], black);
+    break;
+  case 1:
+          strip.setPixelColor(feederStatusPos[i], green);
+    break;
+  case 2:
+          strip.setPixelColor(feederStatusPos[i], red);
+    break;
+  case 3:
+          strip.setPixelColor(feederStatusPos[i], blue);
+    break;
+  default:
+    break;
+  }
+};
+
+void SetStatusReception(int statusReception)
+{
+  int sizeleds = (sizeof(receptionStatusPos) / sizeof(receptionStatusPos[0]));
+  switch (statusReception)
+  {
+  case 0:
+          strip.setPixelColor(receptionStatusPos[i], black);
+    break;
+  case 1:
+          strip.setPixelColor(receptionStatusPos[i], green);
+    break;
+  case 2:
+          strip.setPixelColor(receptionStatusPos[i], red);
+    break;
+  case 3:
+          strip.setPixelColor(receptionStatusPos[i], blue);
+    break;
+  default:
+    break;
+  }
+
+};
+
+void SetStatusCut(int statusCut)
+{
+  int sizeleds = (sizeof(cutStatusPos) / sizeof(cutStatusPos[0]));
+    switch (statusCut)
+  {
+  case 0:
+          strip.setPixelColor(cutStatusPos[i], black);
+    break;
+  case 1:
+          strip.setPixelColor(cutStatusPos[i], green);
+    break;
+  case 2:
+          strip.setPixelColor(cutStatusPos[i], red);
+    break;
+  case 3:
+          strip.setPixelColor(cutStatusPos[i], blue);
+    break;
+  default:
+    break;
+  }
+};
+
+void SetStatusEjection(int statusEjection)
+{
+  int sizeleds = (sizeof(ejectionStatusPos) / sizeof(ejectionStatusPos[0]));
+    switch (statusCut)
+  {
+  case 0:
+          strip.setPixelColor(ejectionStatusPos[i], black);
+    break;
+  case 1:
+          strip.setPixelColor(ejectionStatusPos[i], green);
+    break;
+  case 2:
+          strip.setPixelColor(ejectionStatusPos[i], red);
+    break;
+  case 3:
+          strip.setPixelColor(ejectionStatusPos[i], blue);
+    break;
+  default:
+    break;
+  }
+};
+
+void SetAllStatus( int statusAll )
+{
+  SetStatusCut ( statusAll) ;
+  SetStatusEjection ( statusAll);
+  SetStatusFeeder ( statusAll);
+  SetStatusReception ( statusAll);
+}
 
 void Stop()
 {
-    for (int i =0 ; i < NBLEDS ; i++)
-      strip.setPixelColor(i, 255,0,0);
-    strip.show(); 
+  SetAllStatus (2);
 }
 
 void Reset()
 {
-    for (int i =0 ; i < NBLEDS ; i++)
-      strip.setPixelColor(i, 0,0,255);
-    strip.show();
-    delay(1000);
-    for (int i =0 ; i < NBLEDS ; i++)
-      strip.setPixelColor(i, 0,0,0);
-    strip.show();
+  actualTime = millis();
+  if (isResetOn && ((actualTime - previousTimeReset) < 1000))
+  {
+    SetAllStatus(3);
+  }
+  else
+  {
+    SetAllStatus(0);
+    isResetOn = false;
+  }
+  previousTimeReset = actualTime;
+
 }
 
 void Run()
 {
-    actualTime = millis();
-    for (int i =0 ; i < NBLEDS ; i++)
-      strip.setPixelColor(i, 0,255,0);
-    strip.show();
+    SetAllStatus(1);
 }
 
 void Fill()
@@ -226,7 +322,6 @@ void Fill()
       strip.setPixelColor(feederPos[i], 0,0,0);
      for (int i =0 ; i <= fillStep ; i++)
       strip.setPixelColor(feederPos[i], 255,0,0);
-    //strip.show();
     fillStep = (fillStep + 1 ) % sizeleds;
     previousTimeFill = actualTime;   
     } 
@@ -241,7 +336,6 @@ void Slide()
         for (int i =0 ; i < sizeleds ; i++)
             strip.setPixelColor(chainPathPos[i], 0,0,0,0);
         strip.setPixelColor(chainPathPos[chainStep], 0,0,0,255);
-    //strip.show();
     chainStep = (chainStep + 1 ) % (sizeleds) ;
     previousTimeChain = actualTime;   
     }
@@ -258,7 +352,6 @@ void Empty()
       strip.setPixelColor(receptionPos[i], 255,0,0);
      for (int i =0 ; i <= emptyStep ; i++)
       strip.setPixelColor(receptionPos[i], 0,0,0);
-    //strip.show();
     emptyStep = (emptyStep + 1 ) % sizeleds;
     previousTimeEmpty = actualTime;   
     }  
@@ -441,7 +534,7 @@ void loop()
     else if (strcmp(cmd, msgTab[1])  == 0) 
     {
       Serial.println("Command received: reset");
-      isRunning = false;
+      isResetOn = true;
       bInit = true ;
       Reset();
     }
@@ -495,6 +588,8 @@ void loop()
   
   stringComplete = false;
   }
+
+  Reset();
   Star();
   Fill();
   Slide();
