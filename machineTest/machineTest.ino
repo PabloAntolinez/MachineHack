@@ -78,6 +78,7 @@ unsigned long previousTimeStar;
 unsigned long previousTimeReset;
 unsigned long actualTime;
 bool statusToggle = false;
+int boxCounter = 0 ;
 
 
 // Use the MD_MAX72XX library to Display scrolling text
@@ -195,16 +196,16 @@ void SetStatusFeeder(int statusFeeder)
     switch (statusFeeder)
   {
   case 0:
-          strip.setPixelColor(feederStatusPos[i], black);
+          SetAllLedsArray(feederStatusPos,sizeleds, black);
     break;
   case 1:
-          strip.setPixelColor(feederStatusPos[i], green);
+          SetAllLedsArray(feederStatusPos,sizeleds, green);
     break;
   case 2:
-          strip.setPixelColor(feederStatusPos[i], red);
+          SetAllLedsArray(feederStatusPos,sizeleds, red);
     break;
   case 3:
-          strip.setPixelColor(feederStatusPos[i], blue);
+          SetAllLedsArray(feederStatusPos,sizeleds, blue);
     break;
   default:
     break;
@@ -217,39 +218,38 @@ void SetStatusReception(int statusReception)
   switch (statusReception)
   {
   case 0:
-          strip.setPixelColor(receptionStatusPos[i], black);
+    SetAllLedsArray(receptionStatusPos,sizeleds, black);
     break;
   case 1:
-          strip.setPixelColor(receptionStatusPos[i], green);
+    SetAllLedsArray(receptionStatusPos,sizeleds, green);
     break;
   case 2:
-          strip.setPixelColor(receptionStatusPos[i], red);
+    SetAllLedsArray(receptionStatusPos,sizeleds, red);
     break;
   case 3:
-          strip.setPixelColor(receptionStatusPos[i], blue);
+    SetAllLedsArray(receptionStatusPos,sizeleds, blue);
     break;
   default:
     break;
   }
-
 };
 
 void SetStatusCut(int statusCut)
 {
   int sizeleds = (sizeof(cutStatusPos) / sizeof(cutStatusPos[0]));
-    switch (statusCut)
+  switch (statusCut)
   {
   case 0:
-          strip.setPixelColor(cutStatusPos[i], black);
+    SetAllLedsArray(cutStatusPos,sizeleds, black);
     break;
   case 1:
-          strip.setPixelColor(cutStatusPos[i], green);
+    SetAllLedsArray(cutStatusPos,sizeleds, green);
     break;
   case 2:
-          strip.setPixelColor(cutStatusPos[i], red);
+    SetAllLedsArray(cutStatusPos,sizeleds, red);
     break;
   case 3:
-          strip.setPixelColor(cutStatusPos[i], blue);
+    SetAllLedsArray(cutStatusPos,sizeleds, blue);
     break;
   default:
     break;
@@ -259,24 +259,33 @@ void SetStatusCut(int statusCut)
 void SetStatusEjection(int statusEjection)
 {
   int sizeleds = (sizeof(ejectionStatusPos) / sizeof(ejectionStatusPos[0]));
-    switch (statusCut)
+  switch (statusEjection)
   {
   case 0:
-          strip.setPixelColor(ejectionStatusPos[i], black);
+    SetAllLedsArray(ejectionStatusPos,sizeleds, black);
     break;
   case 1:
-          strip.setPixelColor(ejectionStatusPos[i], green);
+    SetAllLedsArray(ejectionStatusPos,sizeleds, green);
     break;
   case 2:
-          strip.setPixelColor(ejectionStatusPos[i], red);
+    SetAllLedsArray(ejectionStatusPos,sizeleds, red);
     break;
   case 3:
-          strip.setPixelColor(ejectionStatusPos[i], blue);
+    SetAllLedsArray(ejectionStatusPos,sizeleds, blue);
     break;
   default:
     break;
   }
 };
+
+void SetAllLedsArray ( int * arrayLed, int sizeArray, uint32_t color )
+{
+  for (size_t iLed = 0; iLed < sizeArray; iLed++)
+  {
+    strip.setPixelColor( arrayLed [iLed], color);
+  }
+  strip.show();
+}
 
 void SetAllStatus( int statusAll )
 {
@@ -394,6 +403,13 @@ void serialEvent()
     }
 }
 
+void SetBoxCounter()
+{
+
+
+
+}
+
 bool scrollText(bool bInit, char *pmsg)
 // Callback function for data that is required for scrolling into the display
 {
@@ -471,109 +487,61 @@ void resetMatrix(void)
   prevTimeAnim = 0;
 }
 
-//void runMatrixAnimation(void)
-//{
-//  static  uint8_t state = 0;
-//  static  uint8_t mesg = 0;
-//  static  boolean bRestart = true;
-//  static boolean  bInMessages = false;
-//  boolean changeState = false;
-//
-//  // check if one second has passed and then count down the demo timer. Once this
-//  // gets to zero, change the state.
-//  if (millis()-prevTimeDemo >= 1000)
-//  {
-//    prevTimeDemo = millis();
-//    if (--timeDemo == 0)
-//    {
-//      timeDemo = DEMO_DELAY;
-//      changeState = true;
-//    }
-//  }
-//
-//  if (changeState)
-//  {
-//    if (bInMessages) // the message display state
-//    {
-//      mesg++;
-//      if (mesg >= sizeof(msgTab)/sizeof(msgTab[0]))
-//      {
-//        mesg = 0;
-//      bInMessages = false;
-//        state++;
-//      }
-//    }
-//    else
-//      state++;
-//
-//    bRestart = true;
-//  };
-//
-//  // now do whatever we do in the current state
-//  switch(state)
-//  {
-//    case  0: bInMessages = true; bRestart = scrollText(bRestart, msgTab[mesg]); break;
-//
-//    default: state = 0;
-//  }
-//}
-
 void loop() 
 {
   if ( stringComplete )
   {
     Serial.println(cmd);
   
-    if(strcmp(cmd, msgTab[0])  == 0)
+    if(strcmp(cmd, msgTab[0])  == 0)//stop
     {
       Serial.println("Command received: stop");
       isRunning = false;
       bInit = true ;
       Stop();
     }
-    else if (strcmp(cmd, msgTab[1])  == 0) 
+    else if (strcmp(cmd, msgTab[1])  == 0)//reset
     {
       Serial.println("Command received: reset");
       isResetOn = true;
       bInit = true ;
-      Reset();
     }
-    else if (strcmp(cmd, msgTab[2])  == 0) 
+    else if (strcmp(cmd, msgTab[2])  == 0)//run
     {
       Serial.println("Command received: run");
       isRunning = false;
       bInit = true ;
       Run();
     }
-    else if (strcmp(cmd, msgTab[3])  == 0) 
+    else if (strcmp(cmd, msgTab[3])  == 0)//star
     {
       Serial.println("Command received: star");
       functionRun = 1 ;
       isRunning = true;
       bInit = true ;
     }
-    else if (strcmp(cmd, msgTab[4])  == 0) 
+    else if (strcmp(cmd, msgTab[4])  == 0)//fill
     {
       Serial.println("Command received: fill");
       functionRun = 2 ;
       isRunning = true;
       bInit = true ;
     }
-    else if (strcmp(cmd, msgTab[5])  == 0) 
+    else if (strcmp(cmd, msgTab[5])  == 0)//slide
     {
-      Serial.println("Command received: strip");
+      Serial.println("Command received: slide");
       functionRun = 3 ;
       isRunning = true;
       bInit = true ;
     }
-    else if (strcmp(cmd, msgTab[6])  == 0)
+    else if (strcmp(cmd, msgTab[6])  == 0)//empty
     {
       Serial.println("Command received: empty");
       functionRun = 4 ;
       isRunning = true;
       bInit = true ;
     }
-    else if (strcmp(cmd, msgTab[7])  == 0) 
+    else if (strcmp(cmd, msgTab[7])  == 0)//help
     {
       Serial.println("Command received: help");
       for (int i = 0 ; i < sizeof(msgTab)/sizeof(msgTab[0]); i++ )
