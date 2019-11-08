@@ -12,11 +12,12 @@ uint32_t green = strip.Color(0, 255, 0, 0);
 uint32_t blue = strip.Color(0, 0, 255, 0);
 uint32_t white = strip.Color(0, 0, 0, 255);
 uint32_t black = strip.Color(0, 0, 0, 0);
+uint32_t whiteMax = strip.Color(255,255,255,255);
 
 // declare led index tables for animations
 int feederPos[] =
 {
-  7,6,5,4,3,2,1,0
+  0,1,2,3,4,5,6,7
   };
 
 int feederStatusPos[]=
@@ -25,7 +26,7 @@ int feederStatusPos[]=
   };
 int chainPathPos[] =
 {
-  11,12,13,14,  15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,40,41,42,43
+  11,12,13,14,  15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,15,16,17,18,19,20,21,40,41,42,43
   };
 int cutStatusPos[] =
 {
@@ -67,6 +68,7 @@ char incomingByte;
 bool stringComplete = false;
 bool isRunning = false;
 bool isResetOn = false;
+bool isResetToggle = false;
 int functionRun = 0 ;
 int chainStep = 0 ;
 int fillStep = 0;
@@ -161,6 +163,9 @@ void setup()
   prevTimeAnim = millis();
   prevTimeDemo = millis();
   strcpy (cmd , msgTab[8]);
+  Run();
+  isRunning = true; 
+  functionRun = 3;
 }
 
 void SetFeeder(int sheetNumberRemaining)
@@ -303,17 +308,18 @@ void Stop()
 void Reset()
 {
   actualTime = millis();
-  if (isResetOn && ((actualTime - previousTimeReset) < 1000))
+  if (isResetOn )
   {
     SetAllStatus(3);
+    isResetOn = false;
+    isResetToggle = true;
+    previousTimeReset = actualTime;
   }
-  else
+  if ( isResetToggle && ((actualTime - previousTimeReset) > 1000))
   {
     SetAllStatus(0);
-    isResetOn = false;
+    isResetToggle = false;
   }
-  previousTimeReset = actualTime;
-
 }
 
 void Run()
@@ -325,12 +331,12 @@ void Fill()
 {
     actualTime = millis();
     int sizeleds = (sizeof(feederPos)/sizeof(feederPos[0]));
-    if (isRunning &&(functionRun == 3 || functionRun == 2) && ((actualTime - previousTimeFill) > 250))
+    if (isRunning &&(functionRun == 3 || functionRun == 2) && (chainStep == 0)&& ((actualTime - previousTimeFill) > 26))
     { 
      for (int i =0 ; i < sizeleds ; i++)
-      strip.setPixelColor(feederPos[i], 0,0,0);
+      strip.setPixelColor(feederPos[i],whiteMax);
      for (int i =0 ; i <= fillStep ; i++)
-      strip.setPixelColor(feederPos[i], 255,0,0);
+      strip.setPixelColor(feederPos[i], black );
     fillStep = (fillStep + 1 ) % sizeleds;
     previousTimeFill = actualTime;   
     } 
@@ -344,7 +350,7 @@ void Slide()
     { 
         for (int i =0 ; i < sizeleds ; i++)
             strip.setPixelColor(chainPathPos[i], 0,0,0,0);
-        strip.setPixelColor(chainPathPos[chainStep], 0,0,0,255);
+        strip.setPixelColor(chainPathPos[chainStep], whiteMax );
     chainStep = (chainStep + 1 ) % (sizeleds) ;
     previousTimeChain = actualTime;   
     }
@@ -355,12 +361,12 @@ void Empty()
 {
     actualTime = millis();
     int sizeleds = (sizeof(receptionPos)/sizeof(receptionPos[0]));
-    if (isRunning &&(functionRun == 3 ||functionRun == 4 ) && ((actualTime - previousTimeEmpty) > 250))
+    if (isRunning &&(functionRun == 3 ||functionRun == 4 ) && (chainStep == 28 )&&((actualTime - previousTimeEmpty) > 26))
     { 
      for (int i =0 ; i < sizeleds ; i++)
-      strip.setPixelColor(receptionPos[i], 255,0,0);
+      strip.setPixelColor(receptionPos[i], black);
      for (int i =0 ; i <= emptyStep ; i++)
-      strip.setPixelColor(receptionPos[i], 0,0,0);
+      strip.setPixelColor(receptionPos[i], whiteMax);
     emptyStep = (emptyStep + 1 ) % sizeleds;
     previousTimeEmpty = actualTime;   
     }  
@@ -565,92 +571,3 @@ void loop()
   strip.show();
   bInit = scrollText(bInit, cmd);
 }
-
-//
-//#include "led_display.h";
-//
-//int MAX_CMD_LENGTH = 10;
-//char cmd[10];
-//int cmdIndex;
-//char incomingByte;
-//bool stringComplete = false;
-//bool isRunning = false;
-//bool res = false;
-//unsigned long previousTime;
-//unsigned long actualTime;
-//
-//class led_display;
-//
-//led_display ledDisplay;
-//
-//void setup() {
-//  Serial.begin(9600);
-//  res = ledDisplay.Init();
-//}
-//
-// 
-//void loop() {
-//
-//if ( stringComplete )
-//{
-//Serial.println(cmd);
-//ledDisplay.ScrollText(cmd);
-////        if(strcmp(cmd, "stop")  == 0){
-////          Serial.println("Command received: stop");
-////                        isRunning = false;
-////            Stop();
-////
-////        }else if (strcmp(cmd, "reset")  == 0) {
-////          Serial.println("Command received: reset");
-////              isRunning = false;
-////  Reset();
-////
-////        }
-////        else if (strcmp(cmd, "run")  == 0) {
-////          Serial.println("Command received: run");
-////              isRunning = false;
-////  Run();
-////
-////        }
-////        else if (strcmp(cmd, "star")  == 0) {
-////          Serial.println("Command received: star");
-////            isRunning = true;
-////
-////        }else{
-////          Serial.println("Command received: unknown!");
-////        }
-//
-//stringComplete = false;
-//}
-//
-//}
-//
-//
-//
-//void serialEvent() 
-//{
-//  if (incomingByte=Serial.available()>0) 
-//  {
-//    char byteIn = Serial.read();
-//    cmd[cmdIndex] = byteIn; 
-//    if(byteIn=='\n')
-//    {
-//      //command finished
-//      isRunning = false;
-//      cmd[cmdIndex] = '\0';
-//      cmdIndex = 0;
-//      stringComplete = true;
-//        
-//
-//        
-//     }
-//      else
-//     {
-//      if(cmdIndex++ >= MAX_CMD_LENGTH)
-//      {
-//        cmdIndex = 0;
-//      }
-//     }
-//
-//   }
-//}
