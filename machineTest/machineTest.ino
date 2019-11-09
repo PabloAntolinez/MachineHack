@@ -28,6 +28,13 @@ int chainPathPos[] =
 {
   11,12,13,14,  15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,15,16,17,18,19,20,21,40,41,42,43
   };
+
+int feederBeltPos[] =
+{11,12,13,14};
+
+int ejectionBeltPos[] =
+{40,41,42,43};
+
 int cutStatusPos[] =
 {
   31,32,33
@@ -89,23 +96,6 @@ int boxCounter = 0 ;
 #include <SPI.h>
 #define DEMO_DELAY  10  // time to show each demo element in seconds
 
-
-#define DEBUG 0   // Enable or disable (default) debugging output
-
-#if DEBUG
-#define PRINT(s, v)   { Serial.print(F(s)); Serial.print(v); }        // Print a string followed by a value (decimal)
-#define PRINTX(s, v)  { Serial.print(F(s)); Serial.print(v, HEX); }   // Print a string followed by a value (hex)
-#define PRINTB(s, v)  { Serial.print(F(s)); Serial.print(v, BIN); }   // Print a string followed by a value (binary)
-#define PRINTC(s, v)  { Serial.print(F(s)); Serial.print((char)v); }  // Print a string followed by a value (char)
-#define PRINTS(s)     { Serial.print(F(s)); }                         // Print a string
-#else
-#define PRINT(s, v)   // Print a string followed by a value (decimal)
-#define PRINTX(s, v)  // Print a string followed by a value (hex)
-#define PRINTB(s, v)  // Print a string followed by a value (binary)
-#define PRINTC(s, v)  // Print a string followed by a value (char)
-#define PRINTS(s)     // Print a string
-#endif
-
 // --------------------
 // MD_MAX72xx hardware definitions and object
 // Define the number of devices we have in the chain and the hardware interface
@@ -119,8 +109,6 @@ int boxCounter = 0 ;
 #define CS_PIN    53  // or SS
 
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);                      // SPI hardware interface
-//MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES); // Arbitrary pins
-
 
 // --------------------
 // Constant parameters
@@ -135,15 +123,10 @@ MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);                 
 // ========== General Variables ===========
 //
 uint32_t prevTimeAnim = 0;    // Used for remembering the millis() value in animations
-
 uint32_t prevTimeDemo = 0;      //  Used for remembering the millis() time in demo loop
 uint8_t  timeDemo = DEMO_DELAY; // number of seconds left in this demo loop
 bool bInit = true ;
 
-// ========== Text routines ===========
-//
-// Text Message Table
-// To change messages simply reorder, add to, or delete from, this table
 
 void setup() 
 {
@@ -166,6 +149,11 @@ void setup()
   Run();
   isRunning = true; 
   functionRun = 3;
+  for (int i = 0 ; i < 10000; i ++)
+  {    SetBoxCounter( i);
+  delay(1);
+  }
+
 }
 
 void SetFeeder(int sheetNumberRemaining)
@@ -409,11 +397,75 @@ void serialEvent()
     }
 }
 
-void SetBoxCounter()
+void SetBoxCounter( int counter)
 {
+  char buf [6];
+  char* title = "C:";
+  sprintf(buf, "%s%04d", title,counter); // modified Ò font to display nothing
+  Serial.println(buf);
+  PrintText(0,3, buf);
+}
 
+void PrintText(uint8_t modStart, uint8_t modEnd, char *pMsg)
+// Print the text string to the LED matrix modules specified.
+// Message area is padded with blank columns after printing.
+{
+  uint8_t   state = 0;
+  uint8_t   curLen;
+  uint16_t  showLen;
+  uint8_t   cBuf[8];
+  int16_t   col = ((modEnd + 1) * COL_SIZE) - 1;
+  //mx.clear();
+  mx.control(modStart, modEnd, MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
 
+  do     // finite state machine to print the characters in the space available
+  {
+    switch(state)
+    {
+      case 0: // Load the next character from the font table
+        // if we reached end of message, reset the message pointer
+        if (*pMsg == '\0')
+        {
+          showLen = col - (modEnd * COL_SIZE);  // padding characters
+          state = 2;
+          break;
+        }
 
+        // retrieve the next character form the font file
+        showLen = mx.getChar(*pMsg++, sizeof(cBuf)/sizeof(cBuf[0]), cBuf);
+        curLen = 0;
+        state++;
+        // !! deliberately fall through to next state to start displaying
+
+      case 1: // display the next part of the character
+        mx.setColumn(col--, cBuf[curLen++]);
+
+        // done with font character, now display the space between chars
+        if (curLen == showLen)
+        {
+          showLen = CHAR_SPACING;
+          state = 2;
+        }
+        break;
+
+      case 2: // initialize state for displaying empty columns
+        curLen = 0;
+        state++;
+        // fall through
+
+      case 3:  // display inter-character spacing or end of message padding (blank columns)
+        mx.setColumn(col--, 0);
+        curLen++;
+        if (curLen == showLen)
+          state = 0;
+        break;
+
+      default:
+        col = -1;   // this definitely ends the do loop
+    }
+  } while (col >= (modStart * COL_SIZE));
+
+  mx.control(modStart, modEnd, MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
 }
 
 bool scrollText(bool bInit, char *pmsg)
@@ -429,7 +481,6 @@ bool scrollText(bool bInit, char *pmsg)
   // are we initializing?
   if (bInit)
   {
-    PRINTS("\n--- Initializing ScrollText");
     resetMatrix();
     strcpy(curMessage, pmsg);
     state = 0;
@@ -446,11 +497,9 @@ bool scrollText(bool bInit, char *pmsg)
   prevTimeAnim = millis();        // starting point for next time
 
   // now run the finite state machine to control what we do
-  PRINT("\nScroll FSM S:", state);
   switch (state)
   {
     case 0: // Load the next character from the font table
-      PRINTC("\nLoading ", *p);
       showLen = mx.getChar(*p++, sizeof(cBuf)/sizeof(cBuf[0]), cBuf);
       curLen = 0;
       state = 1;
