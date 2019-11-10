@@ -149,9 +149,11 @@ void setup()
   Run();
   isRunning = true; 
   functionRun = 3;
-  for (int i = 0 ; i < 10000; i ++)
-  {    SetBoxCounter( i);
-  delay(1);
+  for (int i = 0 ; i < 100; i ++)
+  {    
+    SetStateText(3+i%4);
+    SetBoxCounter( i);
+  delay(500);
   }
 
 }
@@ -397,13 +399,19 @@ void serialEvent()
     }
 }
 
+void SetStateText ( int state)
+{
+  char buf[2];
+  sprintf(buf,"%c:", state);
+  PrintText(3,3, buf);
+}
+
 void SetBoxCounter( int counter)
 {
   char buf [6];
-  char* title = "C:";
-  sprintf(buf, "%s%04d", title,counter); // modified Ò font to display nothing
+  sprintf(buf, "%04d", counter); // modified Ò font to display nothing
   Serial.println(buf);
-  PrintText(0,3, buf);
+  PrintText(0,2, buf);
 }
 
 void PrintText(uint8_t modStart, uint8_t modEnd, char *pMsg)
