@@ -8,26 +8,24 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NBLEDS, LEDPIN, NEO_GRBW + NEO_KHZ80
 
 uint32_t red = strip.Color(255, 0, 0, 0);
 uint32_t green = strip.Color(0, 255, 0, 0);
+uint32_t darkGreen = strip.Color(0, 40, 0, 0);
 uint32_t blue = strip.Color(0, 0, 255, 0);
 uint32_t white = strip.Color(0, 0, 0, 255);
 uint32_t black = strip.Color(0, 0, 0, 0);
-uint32_t orange = strip.Color(255,105,0,0);
+uint32_t orange = strip.Color(255, 105, 0, 0);
 uint32_t whiteMax = strip.Color(255, 255, 255, 255);
 
 // declare led index tables for animations
 int feederPos[] =
     {
-        7, 6, 5, 4, 3, 2, 1, 0
-    };
+        7, 6, 5, 4, 3, 2, 1, 0};
 
 int feederStatusPos[] =
     {
-        8, 9, 10
-    };
+        8, 9, 10};
 int chainPathPos[] =
     {
-        /*11,12,13,14,*/ 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, //15, 16, 17, 18, 19, 20, 21 /*,40,41,42,43*/
-    };
+        15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30};
 
 int feederBeltPos[] =
     {11, 12, 13, 14};
@@ -36,30 +34,27 @@ int ejectionBeltPos[] =
     {40, 41, 42, 43};
 
 int cutStatusPos[] =
-    {
-        31, 32, 33};
+    {31, 32, 33};
 int ejectionStatusPos[] =
-    {
-        34, 35, 36};
+    {34, 35, 36};
 int receptionStatusPos[] =
-    {
-        37, 38, 39};
+    {37, 38, 39};
 int receptionPos[] =
-    {
-        44, 45, 46, 47, 48, 49, 50, 51};
+    {44, 45, 46, 47, 48, 49, 50, 51};
 
 #define FEEDER_NBSHEET_MAX 100
 #define RECEPTION_NBSHEET_MAX 100
+#define WASTE_NBSHEET_MAX 100
 
 char *msgTab[] =
     {
-        "stop",
-        "reset",
         "run",
+        "prod",
+        "sat",
         "star",
-        "fill",
-        "slide",
-        "empty",
+        "speed",
+        "state",
+        "blocked",
         "help",
         "TAKE THE BOBST CHALLENGE TO CONTROL ME !"};
 
@@ -79,6 +74,7 @@ int feederStep = 0;
 int ejectionStep = 0;
 int receptionStep = 0;
 int feederBeltStep = 0;
+int statusStep = 0;
 unsigned long previousTimeChain;
 unsigned long previousTimeReception;
 unsigned long previousTimeFeeder;
@@ -86,10 +82,13 @@ unsigned long previousTimeStar;
 unsigned long previousTimeReset;
 unsigned long previousTimeFeederBelt;
 unsigned long previousTimeEjectionBelt;
+unsigned long previousTimeStatus;
 unsigned long actualTime;
 bool statusToggle = false;
-int boxCounter = 0;
-int machineSpeed = 3;
+int boxCounter = 235;
+int wasteCounter = 0 ;
+int machineSpeed = 1;
+int currentState = 0;
 
 // Use the MD_MAX72XX library to Display scrolling text
 
@@ -119,7 +118,7 @@ MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES); // SPI hardware 
 #define SCROLL_DELAY (1 * UNIT_DELAY)
 
 #define CHAR_SPACING 1 // pixels between characters
-#define BUF_SIZE 512    // character buffer size
+#define BUF_SIZE 512   // character buffer size
 
 // ========== General Variables ===========
 //
@@ -132,6 +131,7 @@ void setup()
 {
   Serial.begin(115200);
   strip.begin();
+  strip.setBrightness(255);
   for (int i = 0; i < NBLEDS; i++)
   {
     //if ( i%2 == 0)
@@ -139,25 +139,19 @@ void setup()
   }
 
   strip.show(); // Initialize all pixels to 'off'
-  strip.setBrightness(255);
 
   // initialize scroll screen
   mx.begin();
   prevTimeAnim = millis();
   prevTimeDemo = millis();
   strcpy(cmd, msgTab[8]);
-  Run();
-  SetAllStatus(4);
-  SetFeeder(5);
+  SetStateText(0);
   for (int i = 0; i < 100; i++)
   {
-    SetStateText(208 + i % 4);
-    SetBoxCounter(i);
+    SetBoxCounterDisp(i);
     delay(10);
   }
-  Run();
-    isRunning = true;
-  functionRun = 3;
+  AllBlack();
 }
 
 void SetFeeder(int sheetNumberRemaining)
@@ -167,126 +161,46 @@ void SetFeeder(int sheetNumberRemaining)
   int sizeLeds = (sizeof(feederPos) / sizeof(feederPos[0]));
   for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(feederPos[i], black);
-  for (int i = 0; i  < ratio; i++)
+  for (int i = 0; i < ratio; i++)
     strip.setPixelColor(feederPos[i], whiteMax);
-  if (ratio <= 1) // warning
-    SetStatusFeeder(4);
-  else
-    SetStatusFeeder(1);
+  if (sheetNumberRemaining == 0) // warning
+    SetStatusFeeder(red);
 }
 
 void SetReception(int sheetNumber)
 {
   int ratio = (int)(((double)sheetNumber / FEEDER_NBSHEET_MAX) * 8);
   int sizeLeds = (sizeof(receptionPos) / sizeof(receptionPos[0]));
-    for (int i = 0; i < sizeLeds; i++)
+  for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(receptionPos[i], black);
-  for (int i = 0; i  < ratio; i++)
+  for (int i = 0; i < ratio; i++)
     strip.setPixelColor(receptionPos[i], whiteMax);
-    if (ratio >= 7) // warning
-    SetStatusReception(4);
-  else
-    SetStatusReception(1);
+  if (sheetNumber == FEEDER_NBSHEET_MAX) // warning
+    SetStatusReception(red);
 }
 
-void SetStatusFeeder(int statusFeeder)
+void SetStatusFeeder(uint32_t statusFeederColor)
 {
   int sizeLeds = (sizeof(feederStatusPos) / sizeof(feederStatusPos[0]));
-  switch (statusFeeder)
-  {
-  case 0:
-    SetAllLedsArray(feederStatusPos, sizeLeds, black);
-    break;
-  case 1:
-    SetAllLedsArray(feederStatusPos, sizeLeds, green);
-    break;
-  case 2:
-    SetAllLedsArray(feederStatusPos, sizeLeds, red);
-    break;
-  case 3:
-    SetAllLedsArray(feederStatusPos, sizeLeds, blue);
-    break;
-      case 4:
-    SetAllLedsArray(feederStatusPos, sizeLeds, orange);
-    break;
-  default:
-    break;
-  }
+  SetAllLedsArray(feederStatusPos, sizeLeds, statusFeederColor);
 };
 
-void SetStatusReception(int statusReception)
+void SetStatusReception(uint32_t statusReceptionColor)
 {
   int sizeLeds = (sizeof(receptionStatusPos) / sizeof(receptionStatusPos[0]));
-  switch (statusReception)
-  {
-  case 0:
-    SetAllLedsArray(receptionStatusPos, sizeLeds, black);
-    break;
-  case 1:
-    SetAllLedsArray(receptionStatusPos, sizeLeds, green);
-    break;
-  case 2:
-    SetAllLedsArray(receptionStatusPos, sizeLeds, red);
-    break;
-  case 3:
-    SetAllLedsArray(receptionStatusPos, sizeLeds, blue);
-    break;
-  case 4:
-    SetAllLedsArray(receptionStatusPos, sizeLeds, orange);
-    break;
-  default:
-    break;
-  }
+  SetAllLedsArray(receptionStatusPos, sizeLeds, statusReceptionColor);
 };
 
-void SetStatusCut(int statusCut)
+void SetStatusCut(uint32_t statusCutColor)
 {
   int sizeLeds = (sizeof(cutStatusPos) / sizeof(cutStatusPos[0]));
-  switch (statusCut)
-  {
-  case 0:
-    SetAllLedsArray(cutStatusPos, sizeLeds, black);
-    break;
-  case 1:
-    SetAllLedsArray(cutStatusPos, sizeLeds, green);
-    break;
-  case 2:
-    SetAllLedsArray(cutStatusPos, sizeLeds, red);
-    break;
-  case 3:
-    SetAllLedsArray(cutStatusPos, sizeLeds, blue);
-    break;
-  case 4:
-    SetAllLedsArray(cutStatusPos, sizeLeds, orange);
-    break;
-  default:
-    break;
-  }
+  SetAllLedsArray(cutStatusPos, sizeLeds, statusCutColor);
 };
 
-void SetStatusEjection(int statusEjection)
+void SetStatusEjection(uint32_t statusEjectionColor)
 {
   int sizeLeds = (sizeof(ejectionStatusPos) / sizeof(ejectionStatusPos[0]));
-  switch (statusEjection)
-  {
-  case 0:
-    SetAllLedsArray(ejectionStatusPos, sizeLeds, black);
-    break;
-  case 1:
-    SetAllLedsArray(ejectionStatusPos, sizeLeds, green);
-    break;
-  case 2:
-    SetAllLedsArray(ejectionStatusPos, sizeLeds, red);
-    break;
-  case 3:
-    SetAllLedsArray(ejectionStatusPos, sizeLeds, blue);
-    break;
-  case 4:
-    SetAllLedsArray(ejectionStatusPos, sizeLeds, orange);
-    break;
-  default:
-    break;
-  }
+  SetAllLedsArray(ejectionStatusPos, sizeLeds, statusEjectionColor);
 };
 
 void SetAllLedsArray(int *arrayLed, int sizeArray, uint32_t color)
@@ -298,17 +212,17 @@ void SetAllLedsArray(int *arrayLed, int sizeArray, uint32_t color)
   strip.show();
 }
 
-void SetAllStatus(int statusAll)
+void SetAllStatus(uint32_t statusAllColor)
 {
-  SetStatusCut(statusAll);
-  SetStatusEjection(statusAll);
-  SetStatusFeeder(statusAll);
-  SetStatusReception(statusAll);
+  SetStatusCut(statusAllColor);
+  SetStatusEjection(statusAllColor);
+  SetStatusFeeder(statusAllColor);
+  SetStatusReception(statusAllColor);
 }
 
 void Stop()
 {
-  SetAllStatus(2);
+  SetAllStatus(red);
 }
 
 void Reset()
@@ -316,30 +230,30 @@ void Reset()
   actualTime = millis();
   if (isResetOn)
   {
-    SetAllStatus(3);
+    SetAllStatus(blue);
     isResetOn = false;
     isResetToggle = true;
     previousTimeReset = actualTime;
   }
   if (isResetToggle && ((actualTime - previousTimeReset) > 1000))
   {
-    SetAllStatus(0);
+    SetAllStatus(black);
     isResetToggle = false;
   }
 }
 
 void Run()
 {
-  SetAllStatus(1);
+  SetAllStatus(green);
 }
 
 void Feeder()
 {
   actualTime = millis();
   int sizeLeds = (sizeof(feederPos) / sizeof(feederPos[0]));
-  if (isRunning && (functionRun == 3 || functionRun == 2) && (chainStep == 0||chainStep == 8) && ((actualTime - previousTimeFeeder) > ((12/machineSpeed)*25)))
+  if ((currentState == 0) && (chainStep == 0 || chainStep == 8) && ((actualTime - previousTimeFeeder) > ((12 / machineSpeed) * 25)))
   {
-    SetFeeder((sizeLeds-feederStep)*125/10 +1);
+    SetFeeder((sizeLeds - feederStep) * 125 / 10 + 1);
     feederStep = (feederStep + 1) % sizeLeds;
     previousTimeFeeder = actualTime;
   }
@@ -355,7 +269,7 @@ void FeederBelt()
     isBoxOnFeeder = false;
     strip.setPixelColor(feederBeltPos[sizeLeds - 1], black);
   }
-  if (isRunning && (functionRun == 3)  && ((actualTime - previousTimeFeederBelt) > ((6 / machineSpeed) * 10)) && isBoxOnFeeder)
+  if ((currentState == 0 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeFeederBelt) > ((6 / machineSpeed) * 10)) && isBoxOnFeeder)
   {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(feederBeltPos[i], black);
@@ -369,20 +283,41 @@ void Chain()
 {
   actualTime = millis();
   int sizeLeds = (sizeof(chainPathPos) / sizeof(chainPathPos[0]));
-  if (isRunning && (functionRun == 3) && ((actualTime - previousTimeChain) > ((6/machineSpeed)*25)))
+  if ((currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeChain) > ((6 / machineSpeed) * 25)))
   {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(chainPathPos[i], black);
-    strip.setPixelColor(chainPathPos[chainStep], (chainStep >= 0 && chainStep <= 6)? whiteMax : green);
-    strip.setPixelColor(chainPathPos[(chainStep+sizeLeds/2)%sizeLeds],(((chainStep+sizeLeds/2)%sizeLeds) >= 0 && ((chainStep+sizeLeds/2)%sizeLeds) <= 6)? whiteMax : green);
+    strip.setPixelColor(chainPathPos[chainStep], (chainStep >= 0 && chainStep <= 6 && (currentState == 0 || currentState == 2 || currentState == 3)) ? whiteMax : green);
+    strip.setPixelColor(chainPathPos[(chainStep + sizeLeds / 2) % sizeLeds], (((chainStep + sizeLeds / 2) % sizeLeds) >= 0 && ((chainStep + sizeLeds / 2) % sizeLeds) <= 6 && (currentState == 0 || currentState == 2 || currentState == 3)) ? whiteMax : green);
     chainStep = (chainStep + 1) % (sizeLeds);
-    if (chainStep == 15||chainStep==7)
+    if (chainStep == 15 || chainStep == 7)
     {
       isBoxOnFeeder = true;
-    }
-        if (chainStep == 6||chainStep==14)
-    {
       isBoxOnEjection = true;
+    }
+    if (currentState == 0 || currentState == 2 || currentState == 3)
+    {
+      SetAllStatus(darkGreen);
+      if (chainStep == 7 || (chainStep + 8) % 16 == 7)
+      {
+        SetStatusFeeder(green);
+      }
+      else if (chainStep == 2 || (chainStep + 8) % 16 == 2)
+      {
+        SetStatusCut(green);
+      }
+      else if (chainStep == 4 || (chainStep + 8) % 16 == 4)
+      {
+        SetStatusEjection(green);
+      }
+      else if (chainStep == 6 || (chainStep + 8) % 16 == 6)
+      {
+        SetStatusReception(green);
+      }
+      if (currentState == 3)
+      {
+        SetStatusReception(orange);
+      }
     }
 
     previousTimeChain = actualTime;
@@ -393,9 +328,9 @@ void Reception()
 {
   actualTime = millis();
   int sizeLeds = (sizeof(receptionPos) / sizeof(receptionPos[0]));
-  if (isRunning && (functionRun == 3 || functionRun == 2) && (chainStep == 6||chainStep == 14) && ((actualTime - previousTimeReception) > ((12/machineSpeed)*25)))
+  if ((currentState == 0) && (chainStep == 6 || chainStep == 14) && ((actualTime - previousTimeReception) > ((12 / machineSpeed) * 25)))
   {
-    SetReception(receptionStep*125/10 + 1);
+    SetReception(receptionStep * 125 / 10 + 1);
     receptionStep = (receptionStep + 1) % sizeLeds;
     previousTimeReception = actualTime;
   }
@@ -411,27 +346,51 @@ void EjectionBelt()
     isBoxOnEjection = false;
     strip.setPixelColor(ejectionBeltPos[sizeLeds - 1], black);
   }
-  
-  if (isRunning && (functionRun == 3) && ((actualTime - previousTimeEjectionBelt) > ((6/machineSpeed)*10))&&isBoxOnEjection)
+
+  if ((currentState == 0 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeEjectionBelt) > ((6 / machineSpeed) * 10)) && isBoxOnEjection)
   {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(ejectionBeltPos[i], black);
     strip.setPixelColor(ejectionBeltPos[ejectionStep], whiteMax);
-    ejectionStep = (ejectionStep +1);
+    ejectionStep = (ejectionStep + 1);
     previousTimeEjectionBelt = actualTime;
   }
 }
 
+void Status()
+{
+  actualTime = millis();
+  switch (currentState)
+  {
+  case 1:
+    SetAllStatus(darkGreen);
+    break;
+
+  case 4:
+    SetAllStatus(red);
+    break;
+
+  default:
+    break;
+  }
+}
 void Star()
 {
   actualTime = millis();
-  if (isRunning && (functionRun == 1) && ((actualTime - previousTimeStar) > 150))
+  if (currentState == 5 && ((actualTime - previousTimeStar) > 150))
   {
     for (int i = 0; i < NBLEDS; i++)
       strip.setPixelColor(i, random(0, 15) * 16, random(0, 15) * 16, random(0, 15) * 16, 0);
     strip.show();
     previousTimeStar = actualTime;
   }
+}
+
+void AllBlack()
+{
+  for (int i = 0; i < NBLEDS; i++)
+    strip.setPixelColor(i, black);
+  strip.show();
 }
 
 void serialEvent()
@@ -460,13 +419,61 @@ void serialEvent()
 
 void SetStateText(int state)
 {
-  //char buf[6];
-  //buf = "Hello";
-  //sprintf(buf, "%s", state);
-  PrintText(4, 7, "Hello");
+  char buf[12];
+  switch (state)
+  {
+  case 0:
+    sprintf(buf, "Hello !");
+    break;
+  case 1:
+    sprintf(buf, "RUN");
+    break;
+
+  case 2:
+    sprintf(buf, "PROD");
+    break;
+
+  case 3:
+    sprintf(buf, "SAT");
+    break;
+
+  case 4:
+    sprintf(buf, "STOP");
+    break;
+
+  default:
+    break;
+  }
+
+  PrintText(4, 7, buf);
 }
 
+void SetCurrentState(int state)
+{
+  currentState = state;
+}
 void SetBoxCounter(int counter)
+{
+  boxCounter = counter;
+}
+
+void SetWastedCounter(int counter)
+{
+  wasteCounter = counter;
+}
+
+void Waste()
+{
+  int ratio = (int)(((double)wasteCounter / WASTE_NBSHEET_MAX) * 4);
+  int sizeLeds = (sizeof(ejectionBeltPos) / sizeof(ejectionBeltPos[0]));
+  for (int i = 0; i < ratio; i++)
+    strip.setPixelColor(ejectionBeltPos[sizeLeds-i], whiteMax);
+  if (wasteCounter == WASTE_NBSHEET_MAX) // warning
+    for (int i = 0; i < ratio; i++)
+      strip.setPixelColor(ejectionBeltPos[i], red);
+}
+
+void SetBoxCounterDisp(int counter)
 {
   char buf[6];
   sprintf(buf, "%04d", counter); // modified Ò font to display nothing
@@ -610,59 +617,74 @@ void resetMatrix(void)
   prevTimeAnim = 0;
 }
 
+// char *msgTab[] =
+//     {
+//         "run",
+//         "prod",
+//         "sat",
+//         "star",
+//         "speed",
+//         "state",
+//         "blocked",
+//         "help",
+//         "TAKE THE BOBST CHALLENGE TO CONTROL ME !"};
+
 void loop()
 {
   if (stringComplete)
   {
     Serial.println(cmd);
 
-    if (strcmp(cmd, msgTab[0]) == 0) //stop
+    if (strcmp(cmd, msgTab[0]) == 0) //run
     {
-      Serial.println("Command received: stop");
-      isRunning = false;
-      bInit = true;
-      Stop();
-    }
-    else if (strcmp(cmd, msgTab[1]) == 0) //reset
-    {
-      Serial.println("Command received: reset");
-      isResetOn = true;
-      bInit = true;
-    }
-    else if (strcmp(cmd, msgTab[2]) == 0) //run
-    {
+      currentState = 1;
       Serial.println("Command received: run");
-      isRunning = false;
-      bInit = true;
-      Run();
+      mx.clear();
+    }
+    else if (strcmp(cmd, msgTab[1]) == 0) //prod
+    {
+      Serial.println("Command received: prod");
+      currentState = 2;
+      AllBlack();
+      mx.clear();
+    }
+    else if (strcmp(cmd, msgTab[2]) == 0) //sat
+    {
+      Serial.println("Command received: sat");
+      currentState = 3;
+      AllBlack();
+      mx.clear();
     }
     else if (strcmp(cmd, msgTab[3]) == 0) //star
     {
       Serial.println("Command received: star");
-      functionRun = 1;
-      isRunning = true;
+      currentState = 5;
+      AllBlack();
+      mx.clear();
       bInit = true;
-      strcpy(cmd,"Yippie !!!!");
+      strcpy(cmd, "Yippie !!!!");
     }
-    else if (strcmp(cmd, msgTab[4]) == 0) //fill
+    else if (strcmp(cmd, msgTab[4]) == 0) //speed
     {
-      Serial.println("Command received: fill");
-      functionRun = 2;
-      isRunning = true;
-      bInit = true;
-    }
-    else if (strcmp(cmd, msgTab[5]) == 0) //slide
-    {
-      Serial.println("Command received: slide");
-      functionRun = 3;
-      isRunning = true;
+      Serial.println("Command received: speed");
+      machineSpeed = (machineSpeed + 1) % 4;
+      strcpy(cmd, msgTab[8]);
       bInit = true;
     }
-    else if (strcmp(cmd, msgTab[6]) == 0) //empty
+    else if (strcmp(cmd, msgTab[5]) == 0) //state
     {
-      Serial.println("Command received: empty");
-      functionRun = 4;
-      isRunning = true;
+      Serial.println("Command received: state");
+      currentState = (currentState + 1) % 5;
+      if (currentState == 0)
+        strcpy(cmd, msgTab[8]);
+      mx.clear();
+      bInit = true;
+    }
+    else if (strcmp(cmd, msgTab[6]) == 0) //blocked
+    {
+      Serial.println("Command received: blocked");
+      currentState = 4;
+      mx.clear();
       bInit = true;
     }
     else if (strcmp(cmd, msgTab[7]) == 0) //help
@@ -670,8 +692,27 @@ void loop()
       Serial.println("Command received: help");
       for (int i = 0; i < sizeof(msgTab) / sizeof(msgTab[0]); i++)
         Serial.println(msgTab[i]);
-      isRunning = false;
       bInit = true;
+    }
+    else if (strcmp(cmd, "init") == 0) //init
+    {
+      Serial.println("Command received: init");
+      for (int i = 0; i < NBLEDS; i++)
+      {
+        //if ( i%2 == 0)
+        strip.setPixelColor(i, orange);
+      }
+      strip.show();
+      mx.clear();
+      SetStateText(0);
+      for (int i = 0; i < 100; i++)
+      {
+        SetBoxCounterDisp(i);
+        delay(10);
+      }
+      strcpy(cmd, msgTab[8]);
+      currentState = 0;
+      AllBlack();
     }
     else
     {
@@ -685,9 +726,22 @@ void loop()
   Star();
   Feeder();
   FeederBelt();
-  Chain();
   Reception();
-  EjectionBelt();
+  if (currentState == 0 || currentState == 3)
+    EjectionBelt();
+  Status();
+  Chain();
+  Waste();
   strip.show();
-  bInit = scrollText(bInit, cmd);
+  if (currentState == 0 || currentState == 5)
+  {
+    bInit = scrollText(bInit, cmd);
+  }
+  else
+  {
+    SetStateText(currentState);
+    SetBoxCounterDisp(boxCounter);
+    SetFeeder( 50);
+    SetReception(75);
+  }
 }
