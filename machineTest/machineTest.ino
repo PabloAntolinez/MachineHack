@@ -55,17 +55,17 @@ char *msgTab[] =
         "TAKE THE BOBST CHALLENGE TO CONTROL ME !"};
 char *msgTab2[] =
     {
-        "FS",//feederStack
-        "FM",//feederMax
-        "DS",//deliveryStack
-        "DM",//deliveryMax
-        "BW",//boxwasted
-        "WM",//wastedMax
-        "BP",//boxProduced
-        "FR",//feederRunning
+        "FS", //feederStack
+        "FM", //feederMax
+        "DS", //deliveryStack
+        "DM", //deliveryMax
+        "BW", //boxwasted
+        "WM", //wastedMax
+        "BP", //boxProduced
+        "FR", //feederRunning
         "CS", //CurrentSpeed
-        "MS" // machineSpeed 
-        };
+        "MS"  // machineSpeed
+};
 
 const int MAX_CMD_LENGTH = 512;
 char cmd[MAX_CMD_LENGTH];
@@ -207,11 +207,12 @@ void Init()
   strip.show(); // Initialize all pixels to 'off'
   // init demo mode
   strcpy(messageDisp, msgTab[8]);
+  currentState = 0;
   SetStateText(0);
   for (int i = 0; i < 100; i++)
   {
     SetBoxCounterDisp(i);
-    delay(10);
+    delay(5);
   }
   AllBlack();
   mx.clear();
@@ -220,25 +221,43 @@ void Init()
 void SetFeeder(int sheetNumberRemaining)
 {
   feederCounter = sheetNumberRemaining;
-  // 12.5 because feeder got 8 steps
-  int ratio = (int)(((double)sheetNumberRemaining / feederSheetMax) * 8);
+  if (feederCounter > feederSheetMax)
+  {
+    feederCounter = feederSheetMax;
+  }
+  int ratio = (int)ceil(((double)sheetNumberRemaining / feederSheetMax) * 8);
   int sizeLeds = (sizeof(feederPos) / sizeof(feederPos[0]));
   for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(feederPos[i], black);
   for (int i = 0; i < ratio; i++)
-    strip.setPixelColor(feederPos[i], whiteMax);
+    strip.setPixelColor(feederPos[i - 1], whiteMax);
+  if (ratio == 1)
+  {
+     SetStatusFeeder(orange);
+  }
   if (sheetNumberRemaining == 0) // warning
     SetStatusFeeder(red);
 }
 
 void SetReception(int sheetNumber)
 {
+  receptionCounter = sheetNumber;
+  if (sheetNumber > feederSheetMax)
+  {
+    sheetNumber = feederSheetMax;
+  }
+
   int ratio = (int)(((double)sheetNumber / feederSheetMax) * 8);
   int sizeLeds = (sizeof(receptionPos) / sizeof(receptionPos[0]));
   for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(receptionPos[i], black);
   for (int i = 0; i < ratio; i++)
     strip.setPixelColor(receptionPos[i], whiteMax);
+    if (ratio == 8)
+  {
+     SetStatusFeeder(orange);
+  }
+
   if (sheetNumber == feederSheetMax) // warning
     SetStatusReception(red);
 }
@@ -529,12 +548,24 @@ void SetWastedCounter(int counter)
 
 void Waste()
 {
-  int ratio = (int)(((double)wasteCounter / wasteSheetMax) * 4);
+  if (wasteCounter > wasteSheetMax)
+  {
+    wasteCounter = wasteSheetMax;
+  }
+
+  int ratio = (int)ceil(((double)wasteCounter / wasteSheetMax) * 4);
   int sizeLeds = (sizeof(ejectionBeltPos) / sizeof(ejectionBeltPos[0]));
+  for (int i = 0; i < sizeLeds; i++)
+    strip.setPixelColor(ejectionBeltPos[i], black);
   for (int i = 0; i < ratio; i++)
-    strip.setPixelColor(ejectionBeltPos[sizeLeds - i], whiteMax);
+    strip.setPixelColor(ejectionBeltPos[sizeLeds - i -1], whiteMax);
+  if (ratio == 4 )
+  {
+    for (int i = 0; i < sizeLeds; i++)
+      strip.setPixelColor(ejectionBeltPos[i], orange);
+  }
   if (wasteCounter == wasteSheetMax) // warning
-    for (int i = 0; i < ratio; i++)
+    for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(ejectionBeltPos[i], red);
 }
 
@@ -764,7 +795,6 @@ bool scrollText(bool bInit, char *pmsg)
 //   MachineTime = doc["MachineTime"];       // 640
 //   ProductionTime = doc["ProductionTime"]; // 0
 
-
 // }
 
 // ========== Control routines ===========
@@ -800,7 +830,7 @@ void resetMatrix(void)
 //         "BP",//boxProduced
 //         "FR",//feederRunning
 //         "CS", //CurrentSpeed
-//         "MS" // machineSpeed 
+//         "MS" // machineSpeed
 //         };
 
 // *************************************************** Loop ***************************************************
@@ -886,72 +916,77 @@ void loop()
     }
     //***********************************************command machine ***************************************************
 
-        else if (strncmp(cmd, msgTab2[0] , 2) == 0) //         "FS"//feederStack
+    else if (strncmp(cmd, msgTab2[0], 2) == 0) //         "FS"//feederStack
     {
-       sscanf(cmd+3,"%i", &valueCmd); 
-       feederCounter = valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      feederCounter = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[1] , 2) == 0) //         "FM",//feederMax
+    else if (strncmp(cmd, msgTab2[1], 2) == 0) //         "FM",//feederMax
     {
-       sscanf(cmd+3,"%i", &valueCmd); 
-       feederSheetMax = valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      feederSheetMax = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[2] , 2) == 0) //         "DS",//deliveryStack
+    else if (strncmp(cmd, msgTab2[2], 2) == 0) //         "DS",//deliveryStack
     {
-       sscanf(cmd+3,"%i", &valueCmd); 
-       receptionCounter = valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      receptionCounter = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[3] , 2) == 0) //         "DM",//deliveryMax
+    else if (strncmp(cmd, msgTab2[3], 2) == 0) //         "DM",//deliveryMax
     {
-      sscanf(cmd+3,"%i", &valueCmd); 
-      receptionSheetMax=valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      receptionSheetMax = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[4] , 2) == 0) //         "BW",//boxwasted
+    else if (strncmp(cmd, msgTab2[4], 2) == 0) //         "BW",//boxwasted
     {
-      sscanf(cmd+3,"%i", &valueCmd); 
+      sscanf(cmd + 3, "%i", &valueCmd);
       wasteCounter = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[5] , 2) == 0) //         "WM",//wastedMax
+    else if (strncmp(cmd, msgTab2[5], 2) == 0) //         "WM",//wastedMax
     {
-      sscanf(cmd+3,"%i", &valueCmd); 
+      sscanf(cmd + 3, "%i", &valueCmd);
       wasteSheetMax = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[6] , 2) == 0) //         "BP",//boxProduced
+    else if (strncmp(cmd, msgTab2[6], 2) == 0) //         "BP",//boxProduced
     {
-       sscanf(cmd+3,"%i", &valueCmd);
-       boxCounter = valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      boxCounter = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[7] , 2) == 0) //         "FR",//feederRunning
+    else if (strncmp(cmd, msgTab2[7], 2) == 0) //         "FR",//feederRunning
     {
-       sscanf(cmd+3,"%i", &valueCmd);
-       Serial.println("not implemented");
+      sscanf(cmd + 3, "%i", &valueCmd);
+      Serial.println("not implemented");
     }
-        else if (strncmp(cmd, msgTab2[8] , 2) == 0) //         "CS", //CurrentSpeed
+    else if (strncmp(cmd, msgTab2[8], 2) == 0) //         "CS", //CurrentSpeed
     {
-       sscanf(cmd+3,"%i", &valueCmd);
-       machineSpeed = valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      machineSpeed = valueCmd;
     }
-        else if (strncmp(cmd, msgTab2[9] , 2) == 0) //         "MS" // machineState
+    else if (strncmp(cmd, msgTab2[9], 2) == 0) //         "MS" // machineState
     {
-       sscanf(cmd+3,"%i", &valueCmd);
-       currentState = valueCmd;
+      sscanf(cmd + 3, "%i", &valueCmd);
+      mx.clear();
+      currentState = valueCmd;
     }
     else if (strcmp(cmd, "") != 0)
     {
-       Serial.println("nope");
+      Serial.println("nope");
       //JsonRead();
     }
   }
   Reset();
   Star();
-  Feeder();
   FeederBelt();
-  Reception();
-  if (currentState == 0 || currentState == 3)
-    EjectionBelt();
   Status();
   Chain();
-  Waste();
+  Feeder();
+  Reception();
+  if (currentState != 0 && currentState != 5)
+  {
+    Waste();
+  }
+  if (currentState == 0 || currentState == 3)
+    EjectionBelt();
+
   strip.show();
   if (currentState == 0 || currentState == 5)
   {
