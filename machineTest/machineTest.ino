@@ -42,7 +42,6 @@ int receptionStatusPos[] =
 int receptionPos[] =
     {44, 45, 46, 47, 48, 49, 50, 51};
 
-
 char *msgTab[] =
     {
         "run",
@@ -54,9 +53,23 @@ char *msgTab[] =
         "blocked",
         "help",
         "TAKE THE BOBST CHALLENGE TO CONTROL ME !"};
+char *msgTab2[] =
+    {
+        "FS",//feederStack
+        "FM",//feederMax
+        "DS",//deliveryStack
+        "DM",//deliveryMax
+        "BW",//boxwasted
+        "WM",//wastedMax
+        "BP",//boxProduced
+        "FR",//feederRunning
+        "CS", //CurrentSpeed
+        "MS" // machineSpeed 
+        };
 
 const int MAX_CMD_LENGTH = 512;
 char cmd[MAX_CMD_LENGTH];
+char messageDisp[MAX_CMD_LENGTH] = "0";
 int cmdIndex;
 char incomingByte;
 bool stringComplete = false;
@@ -83,11 +96,11 @@ unsigned long previousTimeStatus;
 unsigned long actualTime;
 bool statusToggle = false;
 int boxCounter = 235;
-int wasteCounter = 0 ;
-int feederCounter = 0 ;
-int receptionCounter = 0 ;
-int feederSheetMax  = 100 ;
-int receptionSheetMax = 100 ;
+int wasteCounter = 0;
+int feederCounter = 0;
+int receptionCounter = 0;
+int feederSheetMax = 100;
+int receptionSheetMax = 100;
 int wasteSheetMax = 100;
 int machineSpeed = 1;
 int currentState = 0;
@@ -128,39 +141,35 @@ uint32_t prevTimeDemo = 0;     //  Used for remembering the millis() time in dem
 uint8_t timeDemo = DEMO_DELAY; // number of seconds left in this demo loop
 bool bInit = true;
 
-// *************************************************** Json ***************************************************
+// // *************************************************** Json ***************************************************
 
-#include <ArduinoJson.h>
+// #include <ArduinoJson.h>
 
-const char *json = "{\"NbBoxFeederStack\":0,\"NbBoxFeederStackMax\":10000,\"NbBoxDeliveryStack\":0,\"NbBoxDeliveryStackMax\":10000,\"NbBoxWasted\":0,\"NbBoxWastedTotal\":0,\"NbBoxWastedMax\":600,\"NbBoxProduced\":0,\"FeederRunning\":false,\"NbOfIssues\":0,\"IssueType\":\"tbd\",\"CurrentSpeed\":0,\"CurrentMachineState\":\"running\",\"MachineTime\":640,\"ProductionTime\":0}";
-StaticJsonDocument<500> doc;
+// //const char *json = "{\"NbBoxFeederStack\":0,\"NbBoxFeederStackMax\":10000,\"NbBoxDeliveryStack\":0,\"NbBoxDeliveryStackMax\":10000,\"NbBoxWasted\":0,\"NbBoxWastedTotal\":0,\"NbBoxWastedMax\":600,\"NbBoxProduced\":0,\"FeederRunning\":false,\"NbOfIssues\":0,\"IssueType\":\"tbd\",\"CurrentSpeed\":0,\"CurrentMachineState\":\"running\",\"MachineTime\":640,\"ProductionTime\":0}";
+// StaticJsonDocument<500> doc;
 
-int NbBoxFeederStack = 0;
-int NbBoxFeederStackMax =  10000;
-int NbBoxDeliveryStack =  0 ;
-int NbBoxDeliveryStackMax = 10000; // 10000
-int NbBoxWasted = 0; // 0
-int NbBoxWastedTotal = 0; // 0
-int NbBoxWastedMax = 600; // 600
-int NbBoxProduced = 0; // 0
-bool FeederRunning = false; // false
-int NbOfIssues = 0; // 0
-const char* IssueType = "tbd"; // "tbd"
-int CurrentSpeed = 0; // 0
-const char* CurrentMachineState = "running"; // "running"
-int MachineTime = 640 ; // 640
-int ProductionTime = 0; // 0
-
-
-
+// int NbBoxFeederStack = 0;
+// int NbBoxFeederStackMax = 10000;
+// int NbBoxDeliveryStack = 0;
+// int NbBoxDeliveryStackMax = 10000;     // 10000
+// int NbBoxWasted = 0;                   // 0
+// int NbBoxWastedTotal = 0;              // 0
+// int NbBoxWastedMax = 600;              // 600
+// int NbBoxProduced = 0;                 // 0
+// bool FeederRunning = false;            // false
+// int NbOfIssues = 0;                    // 0
+// char *IssueType = "tbd";               // "tbd"
+// int CurrentSpeed = 0;                  // 0
+// char *CurrentMachineState = "running"; // "running"
+// int MachineTime = 640;                 // 640
+// int ProductionTime = 0;                // 0
 
 // *************************************************** Setup ***************************************************
 
-
 void setup()
 {
-  Serial.begin(57600);
-
+  Serial.begin(9600);
+  Serial.setTimeout(2000);
   // strip init
   strip.begin();
   strip.setBrightness(255);
@@ -169,7 +178,6 @@ void setup()
   //   strip.setPixelColor(i, 0, 0, 0, 128);
   // }
   // strip.show(); // Initialize all pixels to 'off'
-
 
   // initialize scroll screen
   mx.begin();
@@ -187,7 +195,6 @@ void setup()
   // AllBlack();
 }
 
-
 // *************************************************** functions ***************************************************
 
 void Init()
@@ -199,7 +206,7 @@ void Init()
   }
   strip.show(); // Initialize all pixels to 'off'
   // init demo mode
-  strcpy(cmd, msgTab[8]);
+  strcpy(messageDisp, msgTab[8]);
   SetStateText(0);
   for (int i = 0; i < 100; i++)
   {
@@ -212,6 +219,7 @@ void Init()
 
 void SetFeeder(int sheetNumberRemaining)
 {
+  feederCounter = sheetNumberRemaining;
   // 12.5 because feeder got 8 steps
   int ratio = (int)(((double)sheetNumberRemaining / feederSheetMax) * 8);
   int sizeLeds = (sizeof(feederPos) / sizeof(feederPos[0]));
@@ -524,7 +532,7 @@ void Waste()
   int ratio = (int)(((double)wasteCounter / wasteSheetMax) * 4);
   int sizeLeds = (sizeof(ejectionBeltPos) / sizeof(ejectionBeltPos[0]));
   for (int i = 0; i < ratio; i++)
-    strip.setPixelColor(ejectionBeltPos[sizeLeds-i], whiteMax);
+    strip.setPixelColor(ejectionBeltPos[sizeLeds - i], whiteMax);
   if (wasteCounter == wasteSheetMax) // warning
     for (int i = 0; i < ratio; i++)
       strip.setPixelColor(ejectionBeltPos[i], red);
@@ -664,92 +672,100 @@ bool scrollText(bool bInit, char *pmsg)
   return (bInit);
 }
 
-void JsonRead()
-{
-  DeserializationError error = deserializeJson(doc, cmd);
-  // Test if parsing succeeds.
-  if (error)
-  {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
-    return;
-  }
+// void JsonRead()
+// {
+//   DeserializationError error = deserializeJson(doc, cmd);
+//   // Test if parsing succeeds.
+//   if (error)
+//   {
+//     Serial.print(F("deserializeJson() failed: "));
+//     Serial.println(error.c_str());
+//     return;
+//   }
 
-// const int MAX_CMD_LENGTH = 512;
-// char cmd[MAX_CMD_LENGTH];
-// int cmdIndex;
-// char incomingByte;
-// bool stringComplete = false;
-// bool isRunning = false;
-// bool isResetOn = false;
-// bool isResetToggle = false;
-// bool isBoxOnFeeder = false;
-// bool isBoxOnEjection = false;
-// int functionRun = 0;
-// int chainStep = 0;
-// int feederStep = 0;
-// int ejectionStep = 0;
-// int receptionStep = 0;
-// int feederBeltStep = 0;
-// int statusStep = 0;
-// unsigned long previousTimeChain;
-// unsigned long previousTimeReception;
-// unsigned long previousTimeFeeder;
-// unsigned long previousTimeStar;
-// unsigned long previousTimeReset;
-// unsigned long previousTimeFeederBelt;
-// unsigned long previousTimeEjectionBelt;
-// unsigned long previousTimeStatus;
-// unsigned long actualTime;
-// bool statusToggle = false;
-// int boxCounter = 235;
-// int wasteCounter = 0 ;
-// int feederCounter = 0 ;
-// int receptionCounter = 0 ;
-// int feederSheetMax  = 100 ;
-// int receptionSheetMax = 100 ;
-// int wasteSheetMax = 100;
-// int machineSpeed = 1;
-// int currentState = 0;
+//   Serial.print("Json said :");
+//   Serial.println (cmd);
 
-  feederCounter = doc["NbBoxFeederStack"];               // 0
-  feederSheetMax = doc["NbBoxFeederStackMax"];         // 10000
-  receptionCounter = doc["NbBoxDeliveryStack"];           // 0
-  receptionSheetMax = doc["NbBoxDeliveryStackMax"];     // 10000
-  wasteCounter = doc["NbBoxWasted"];                         // 0
-   NbBoxWastedTotal = doc["NbBoxWastedTotal"];               // 0
-  wasteSheetMax = doc["NbBoxWastedMax"];                   // 600
-  boxCounter = doc["NbBoxProduced"];                     // 0
-   FeederRunning = doc["FeederRunning"];                    // false
-   NbOfIssues = doc["NbOfIssues"];                           // 0
-   IssueType = doc["IssueType"];                     // "tbd"
-  machineSpeed = doc["CurrentSpeed"];                       // 0
+//   const int MAX_CMD_LENGTH = 512;
+//   char cmd[MAX_CMD_LENGTH];
+//   int cmdIndex;
+//   char incomingByte;
+//   bool stringComplete = false;
+//   bool isRunning = false;
+//   bool isResetOn = false;
+//   bool isResetToggle = false;
+//   bool isBoxOnFeeder = false;
+//   bool isBoxOnEjection = false;
+//   int functionRun = 0;
+//   int chainStep = 0;
+//   int feederStep = 0;
+//   int ejectionStep = 0;
+//   int receptionStep = 0;
+//   int feederBeltStep = 0;
+//   int statusStep = 0;
+//   unsigned long previousTimeChain;
+//   unsigned long previousTimeReception;
+//   unsigned long previousTimeFeeder;
+//   unsigned long previousTimeStar;
+//   unsigned long previousTimeReset;
+//   unsigned long previousTimeFeederBelt;
+//   unsigned long previousTimeEjectionBelt;
+//   unsigned long previousTimeStatus;
+//   unsigned long actualTime;
+//   bool statusToggle = false;
+//   int boxCounter = 235;
+//   int wasteCounter = 0;
+//   int feederCounter = 0;
+//   int receptionCounter = 0;
+//   int feederSheetMax = 100;
+//   int receptionSheetMax = 100;
+//   int wasteSheetMax = 100;
+//   int machineSpeed = 1;
+//   int currentState = 0;
 
-  CurrentMachineState = doc["CurrentMachineState"]; // "running"
-  if (strcmp( CurrentMachineState, "running") == 0 )
-  {
-    currentState = 1;
-  }
-  else if (strcmp( CurrentMachineState, "production") == 0)
-  {
-    currentState = 2;
-  }
-  else if (strcmp( CurrentMachineState, "saturated") == 0)
-  {
-    currentState = 3;
-  }
-  else if (strcmp( CurrentMachineState, "blocked") == 0)
-  {
-    currentState = 4;
-  }
-  else
-  {
-    Serial.println(" state not understood");
-  }
-  
-   MachineTime = doc["MachineTime"];                         // 640
-   ProductionTime = doc["ProductionTime"];                   // 0
-}
+//   feederCounter = doc["NbBoxFeederStack"].as<int>();          // 0
+//   feederSheetMax = doc["NbBoxFeederStackMax"].as<int>();      // 10000
+//   receptionCounter = doc["NbBoxDeliveryStack"].as<int>();     // 0
+//   receptionSheetMax = doc["NbBoxDeliveryStackMax"].as<int>(); // 10000
+//   wasteCounter = doc["NbBoxWasted"].as<int>();                // 0
+//   NbBoxWastedTotal = doc["NbBoxWastedTotal"].as<int>();       // 0
+//   wasteSheetMax = doc["NbBoxWastedMax"].as<int>();            // 600
+//   boxCounter = doc["NbBoxProduced"].as<int>();                // 0
+//   FeederRunning = doc["FeederRunning"].as<bool>();            // false
+//   NbOfIssues = doc["NbOfIssues"].as<int>();                   // 0
+//   IssueType = doc["IssueType"];                               // "tbd"
+//   machineSpeed = doc["CurrentSpeed"].as<int>();               // 0
+
+//   CurrentMachineState = doc["CurrentMachineState"]; // "running"
+
+//   int oldState = currentState;
+//   if (strcmp(CurrentMachineState, "running") == 0)
+//   {
+//     currentState = 1;
+//   }
+//   else if (strcmp(CurrentMachineState, "production") == 0)
+//   {
+//     currentState = 2;
+//   }
+//   else if (strcmp(CurrentMachineState, "saturated") == 0)
+//   {
+//     currentState = 3;
+//   }
+//   else if (strcmp(CurrentMachineState, "blocked") == 0)
+//   {
+//     currentState = 4;
+//   }
+//   else
+//   {
+//     currentState = oldState;
+//     Serial.println(" state not understood");
+//   }
+
+//   MachineTime = doc["MachineTime"];       // 640
+//   ProductionTime = doc["ProductionTime"]; // 0
+
+
+// }
 
 // ========== Control routines ===========
 //
@@ -773,14 +789,37 @@ void resetMatrix(void)
 //         "help",
 //         "TAKE THE BOBST CHALLENGE TO CONTROL ME !"};
 
+// char *msgTab2[] =
+//     {
+//         "FS",//feederStack
+//         "FM",//feederMax
+//         "DS",//deliveryStack
+//         "DM",//deliveryMax
+//         "BW",//boxwasted
+//         "WM",//wastedMax
+//         "BP",//boxProduced
+//         "FR",//feederRunning
+//         "CS", //CurrentSpeed
+//         "MS" // machineSpeed 
+//         };
 
 // *************************************************** Loop ***************************************************
 
 void loop()
 {
-  if (stringComplete)
+  char byteIn = 0;
+  int cmdIndex = 0;
+  int valueCmd = 0;
+  if (stringComplete == true)
   {
-    //Serial.println(cmd);
+    Serial.println(cmd);
+    stringComplete = false;
+
+    int availableBytes = Serial.available();
+    for (int i = 0; i < availableBytes; i++)
+    {
+      cmd[i] = Serial.read();
+    }
 
     if (strcmp(cmd, msgTab[0]) == 0) //run
     {
@@ -809,13 +848,12 @@ void loop()
       AllBlack();
       mx.clear();
       bInit = true;
-      strcpy(cmd, "Yippie !!!!");
+      strcpy(messageDisp, "Yippie !!!!");
     }
     else if (strcmp(cmd, msgTab[4]) == 0) //speed
     {
       Serial.println("Command received: speed");
       machineSpeed = (machineSpeed + 1) % 4;
-      strcpy(cmd, msgTab[8]);
       bInit = true;
     }
     else if (strcmp(cmd, msgTab[5]) == 0) //state
@@ -823,7 +861,7 @@ void loop()
       Serial.println("Command received: state");
       currentState = (currentState + 1) % 5;
       if (currentState == 0)
-        strcpy(cmd, msgTab[8]);
+        strcpy(messageDisp, msgTab[8]);
       mx.clear();
       bInit = true;
     }
@@ -846,15 +884,64 @@ void loop()
       Serial.println("Command received: init");
       Init();
     }
-    else
+    //***********************************************command machine ***************************************************
+
+        else if (strncmp(cmd, msgTab2[0] , 2) == 0) //         "FS"//feederStack
     {
-      JsonRead();
-      //Serial.println(cmd);
+       sscanf(cmd+3,"%i", &valueCmd); 
+       feederCounter = valueCmd;
     }
-
-    stringComplete = false;
+        else if (strncmp(cmd, msgTab2[1] , 2) == 0) //         "FM",//feederMax
+    {
+       sscanf(cmd+3,"%i", &valueCmd); 
+       feederSheetMax = valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[2] , 2) == 0) //         "DS",//deliveryStack
+    {
+       sscanf(cmd+3,"%i", &valueCmd); 
+       receptionCounter = valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[3] , 2) == 0) //         "DM",//deliveryMax
+    {
+      sscanf(cmd+3,"%i", &valueCmd); 
+      receptionSheetMax=valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[4] , 2) == 0) //         "BW",//boxwasted
+    {
+      sscanf(cmd+3,"%i", &valueCmd); 
+      wasteCounter = valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[5] , 2) == 0) //         "WM",//wastedMax
+    {
+      sscanf(cmd+3,"%i", &valueCmd); 
+      wasteSheetMax = valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[6] , 2) == 0) //         "BP",//boxProduced
+    {
+       sscanf(cmd+3,"%i", &valueCmd);
+       boxCounter = valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[7] , 2) == 0) //         "FR",//feederRunning
+    {
+       sscanf(cmd+3,"%i", &valueCmd);
+       Serial.println("not implemented");
+    }
+        else if (strncmp(cmd, msgTab2[8] , 2) == 0) //         "CS", //CurrentSpeed
+    {
+       sscanf(cmd+3,"%i", &valueCmd);
+       machineSpeed = valueCmd;
+    }
+        else if (strncmp(cmd, msgTab2[9] , 2) == 0) //         "MS" // machineState
+    {
+       sscanf(cmd+3,"%i", &valueCmd);
+       currentState = valueCmd;
+    }
+    else if (strcmp(cmd, "") != 0)
+    {
+       Serial.println("nope");
+      //JsonRead();
+    }
   }
-
   Reset();
   Star();
   Feeder();
@@ -868,13 +955,13 @@ void loop()
   strip.show();
   if (currentState == 0 || currentState == 5)
   {
-    bInit = scrollText(bInit, cmd);
+    bInit = scrollText(bInit, messageDisp);
   }
   else
   {
     SetStateText(currentState);
     SetBoxCounterDisp(boxCounter);
-    SetFeeder( 50);
-    SetReception(75);
+    SetFeeder(feederCounter);
+    SetReception(receptionCounter);
   }
 }
