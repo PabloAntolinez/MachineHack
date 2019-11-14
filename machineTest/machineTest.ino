@@ -70,7 +70,7 @@ char *msgTab2[] =
 const int MAX_CMD_LENGTH = 512;
 char cmd[MAX_CMD_LENGTH];
 char messageDisp[MAX_CMD_LENGTH] = "0";
-int cmdIndex;
+int cmdIndex = 0;
 char incomingByte;
 bool stringComplete = false;
 bool isRunning = false;
@@ -104,7 +104,8 @@ int receptionSheetMax = 100;
 int wasteSheetMax = 100;
 int machineSpeed = 1;
 int currentState = 0;
-
+String cmdString = "";
+int valueCmd = 0;
 // *************************************************** Use the MD_MAX72XX library to Display scrolling text ***************************************************
 
 #include <MD_MAX72xx.h>
@@ -207,8 +208,8 @@ void Init()
   strip.show(); // Initialize all pixels to 'off'
   // init demo mode
   strcpy(messageDisp, msgTab[8]);
-  currentState = 0;
-  SetStateText(0);
+  currentState = 2;
+  SetStateText(currentState);
   for (int i = 0; i < 100; i++)
   {
     SetBoxCounterDisp(i);
@@ -478,29 +479,30 @@ void AllBlack()
   strip.show();
 }
 
-void serialEvent()
-{
-  if (incomingByte = Serial.available() > 0)
-  {
-    char byteIn = Serial.read();
-    cmd[cmdIndex] = byteIn;
-    if (byteIn == '\n')
-    {
-      //command finished
-      isRunning = false;
-      cmd[cmdIndex] = '\0';
-      cmdIndex = 0;
-      stringComplete = true;
-    }
-    else
-    {
-      if (cmdIndex++ >= MAX_CMD_LENGTH)
-      {
-        cmdIndex = 0;
-      }
-    }
-  }
-}
+// void serialEvent()
+// {
+//   char byteIn = 0;
+//   int cmdIndex = 0;
+
+//   bool finished = false;
+//   while (Serial.available() > 0 && !finished)
+//   {
+//     byteIn = Serial.read();
+//     if (byteIn == '\n')
+//     {
+//       stringComplete = true;
+//       finished = true;
+//       // strcpy(cmd,cmdString.c_str());
+//     } 
+//     else
+//     {
+//       cmd[cmdIndex++] = byteIn;
+//     }
+    
+//     // cmdString.concat(byteIn);
+
+//   }
+// }
 
 void SetStateText(int state)
 {
@@ -834,24 +836,106 @@ void resetMatrix(void)
 //         };
 
 // *************************************************** Loop ***************************************************
-
 void loop()
 {
+  // char byteIn = 0;
+  // int cmdIndex = 0;
+  // int valueCmd = 0;
+  // while (Serial.available() > 0)
+  // {
+  //   byteIn = Serial.read();
+  //   if (byteIn == '\n')
+  //   {
+  //     stringComplete = true;
+  //     strcpy(cmd,cmdString.c_str());
+  //   }
+  //   cmdString.concat(byteIn);
+  //   //Serial.print("out :");
+  //   //Serial.println(cmdString);
+
+  // }
   char byteIn = 0;
-  int cmdIndex = 0;
-  int valueCmd = 0;
+  bool finished = false;
+  while (Serial.available() > 0 && !finished)
+  {
+    byteIn = Serial.read();
+    if (byteIn == '\n')
+    {
+      stringComplete = true;
+      finished = true;
+      cmd[cmdIndex++] = '\0';
+      cmdIndex = 0;
+      // strcpy(cmd,cmdString.c_str());
+    } 
+    else
+    {
+      cmd[cmdIndex++] = byteIn;//cmdIndex + 48;
+    }
+    
+    // cmdString.concat(byteIn);
+
+  }
+
   if (stringComplete == true)
   {
-    Serial.println(cmd);
+    // Serial.print("cmd : ");
+    // Serial.println( cmd );
     stringComplete = false;
 
-    int availableBytes = Serial.available();
-    for (int i = 0; i < availableBytes; i++)
-    {
-      cmd[i] = Serial.read();
-    }
+    //***********************************************command machine ***************************************************
 
-    if (strcmp(cmd, msgTab[0]) == 0) //run
+    if (strncmp(cmd, msgTab2[0], 2) == 0) //         "FS"//feederStack
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      feederCounter = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[1], 2) == 0) //         "FM",//feederMax
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      feederSheetMax = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[2], 2) == 0) //         "DS",//deliveryStack
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      receptionCounter = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[3], 2) == 0) //         "DM",//deliveryMax
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      receptionSheetMax = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[4], 2) == 0) //         "BW",//boxwasted
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      wasteCounter = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[5], 2) == 0) //         "WM",//wastedMax
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      wasteSheetMax = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[6], 2) == 0) //         "BP",//boxProduced
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      boxCounter = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[7], 2) == 0) //         "FR",//feederRunning
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      //Serial.println("not implemented");
+    }
+    else if (strncmp(cmd, msgTab2[8], 2) == 0) //         "CS", //CurrentSpeed
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      machineSpeed = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[9], 2) == 0) //         "MS" // machineState
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      mx.clear();
+      currentState = valueCmd;
+    }
+    else if (strcmp(cmd, msgTab[0]) == 0) //run
     {
       currentState = 1;
       Serial.println("Command received: run");
@@ -914,64 +998,13 @@ void loop()
       Serial.println("Command received: init");
       Init();
     }
-    //***********************************************command machine ***************************************************
 
-    else if (strncmp(cmd, msgTab2[0], 2) == 0) //         "FS"//feederStack
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      feederCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[1], 2) == 0) //         "FM",//feederMax
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      feederSheetMax = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[2], 2) == 0) //         "DS",//deliveryStack
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      receptionCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[3], 2) == 0) //         "DM",//deliveryMax
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      receptionSheetMax = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[4], 2) == 0) //         "BW",//boxwasted
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      wasteCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[5], 2) == 0) //         "WM",//wastedMax
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      wasteSheetMax = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[6], 2) == 0) //         "BP",//boxProduced
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      boxCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[7], 2) == 0) //         "FR",//feederRunning
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      Serial.println("not implemented");
-    }
-    else if (strncmp(cmd, msgTab2[8], 2) == 0) //         "CS", //CurrentSpeed
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      machineSpeed = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[9], 2) == 0) //         "MS" // machineState
-    {
-      sscanf(cmd + 3, "%i", &valueCmd);
-      mx.clear();
-      currentState = valueCmd;
-    }
     else if (strcmp(cmd, "") != 0)
     {
-      Serial.println("nope");
+      //Serial.println("nope");
       //JsonRead();
     }
+    // cmdString = "";
   }
   Reset();
   Star();
