@@ -208,7 +208,7 @@ void Init()
   strip.show(); // Initialize all pixels to 'off'
   // init demo mode
   strcpy(messageDisp, msgTab[8]);
-  currentState = 2;
+  currentState = 0;
   SetStateText(currentState);
   for (int i = 0; i < 100; i++)
   {
