@@ -962,7 +962,7 @@ void loop()
       AllBlack();
       mx.clear();
       bInit = true;
-      strcpy(messageDisp, "Yippie !!!!");
+      strcpy(messageDisp, "Yippie !!!! Thank you and welcome !!!");
     }
     else if (strcmp(cmd, msgTab[4]) == 0) //speed
     {
@@ -1001,8 +1001,12 @@ void loop()
 
     else if (strcmp(cmd, "") != 0)
     {
-      //Serial.println("nope");
-      //JsonRead();
+      if (currentState==0|| currentState==5)
+      {
+              
+      strcpy(messageDisp, cmd);
+      }
+
     }
     // cmdString = "";
   }
