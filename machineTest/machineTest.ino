@@ -64,7 +64,9 @@ char *msgTab2[] =
         "BP", //boxProduced
         "FR", //feederRunning
         "CS", //CurrentSpeed
-        "MS"  // machineSpeed
+        "MS", // machineSpeed
+        "PR", //press
+        "EJ"  //ejection
 };
 
 const int MAX_CMD_LENGTH = 512;
@@ -95,6 +97,8 @@ unsigned long previousTimeEjectionBelt;
 unsigned long previousTimeStatus;
 unsigned long actualTime;
 bool statusToggle = false;
+int statusPress = 0;
+int statusEjection = 0;
 int boxCounter = 235;
 int wasteCounter = 0;
 int feederCounter = 0;
@@ -234,7 +238,7 @@ void SetFeeder(int sheetNumberRemaining)
     strip.setPixelColor(feederPos[i], whiteMax);
   if (ratio == 1)
   {
-     SetStatusFeeder(orange);
+    SetStatusFeeder(orange);
   }
   if (sheetNumberRemaining == 0) // warning
     SetStatusFeeder(red);
@@ -254,9 +258,9 @@ void SetReception(int sheetNumber)
     strip.setPixelColor(receptionPos[i], black);
   for (int i = 0; i < ratio; i++)
     strip.setPixelColor(receptionPos[i], whiteMax);
-    if (ratio == 8)
+  if (ratio == 8)
   {
-     SetStatusFeeder(orange);
+    SetStatusFeeder(orange);
   }
 
   if (sheetNumber == receptionSheetMax) // warning
@@ -493,16 +497,52 @@ void AllBlack()
 //       stringComplete = true;
 //       finished = true;
 //       // strcpy(cmd,cmdString.c_str());
-//     } 
+//     }
 //     else
 //     {
 //       cmd[cmdIndex++] = byteIn;
 //     }
-    
+
 //     // cmdString.concat(byteIn);
 
 //   }
 // }
+
+void Ejection()
+{
+  switch (statusEjection)
+  {
+  case 0:
+    SetStatusEjection(green);
+    break;
+  case 1:
+    SetStatusEjection(orange);
+    break;
+  case 2:
+    SetStatusEjection(red);
+    break;
+  default:
+    break;
+  }
+}
+
+void Cut()
+{
+  switch (statusPress)
+  {
+  case 0:
+    SetStatusCut(green);
+    break;
+  case 1:
+    SetStatusCut(orange);
+    break;
+  case 2:
+    SetStatusCut(red);
+    break;
+  default:
+    break;
+  }
+}
 
 void SetStateText(int state)
 {
@@ -527,7 +567,9 @@ void SetStateText(int state)
   case 4:
     sprintf(buf, "STOP");
     break;
-
+  case 6:
+    sprintf(buf, "LOG");
+    break;
   default:
     break;
   }
@@ -560,8 +602,8 @@ void Waste()
   for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(ejectionBeltPos[i], black);
   for (int i = 0; i < ratio; i++)
-    strip.setPixelColor(ejectionBeltPos[sizeLeds - i -1], whiteMax);
-  if (ratio == 4 )
+    strip.setPixelColor(ejectionBeltPos[sizeLeds - i - 1], whiteMax);
+  if (ratio == 4)
   {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(ejectionBeltPos[i], orange);
@@ -866,14 +908,13 @@ void loop()
       cmd[cmdIndex++] = '\0';
       cmdIndex = 0;
       // strcpy(cmd,cmdString.c_str());
-    } 
+    }
     else
     {
-      cmd[cmdIndex++] = byteIn;//cmdIndex + 48;
+      cmd[cmdIndex++] = byteIn; //cmdIndex + 48;
     }
-    
-    // cmdString.concat(byteIn);
 
+    // cmdString.concat(byteIn);
   }
 
   if (stringComplete == true)
@@ -934,6 +975,16 @@ void loop()
       sscanf(cmd + 3, "%i", &valueCmd);
       mx.clear();
       currentState = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[10], 2) == 0) //         "PR" // press
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      statusPress = valueCmd;
+    }
+    else if (strncmp(cmd, msgTab2[11], 2) == 0) //         "EJ" // ejection
+    {
+      sscanf(cmd + 3, "%i", &valueCmd);
+      statusEjection = valueCmd;
     }
     else if (strcmp(cmd, msgTab[0]) == 0) //run
     {
@@ -1001,12 +1052,11 @@ void loop()
 
     else if (strcmp(cmd, "") != 0)
     {
-      if (currentState==0|| currentState==5)
+      if (currentState == 0 || currentState == 5)
       {
-              
-      strcpy(messageDisp, cmd);
-      }
 
+        strcpy(messageDisp, cmd);
+      }
     }
     // cmdString = "";
   }
@@ -1017,6 +1067,9 @@ void loop()
   Chain();
   Feeder();
   Reception();
+  Ejection();
+  Cut();
+
   if (currentState != 0 && currentState != 5)
   {
     Waste();
@@ -1024,7 +1077,6 @@ void loop()
   if (currentState == 0 || currentState == 3)
     EjectionBelt();
 
-  strip.show();
   if (currentState == 0 || currentState == 5)
   {
     bInit = scrollText(bInit, messageDisp);
@@ -1035,5 +1087,12 @@ void loop()
     SetBoxCounterDisp(boxCounter);
     SetFeeder(feederCounter);
     SetReception(receptionCounter);
+    Ejection();
+    Cut();
   }
+  if (currentState == 6)
+  {
+    AllBlack();
+  }
+  strip.show();
 }
