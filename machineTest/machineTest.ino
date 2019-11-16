@@ -231,7 +231,7 @@ void SetFeeder(int sheetNumberRemaining)
   for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(feederPos[i], black);
   for (int i = 0; i < ratio; i++)
-    strip.setPixelColor(feederPos[i - 1], whiteMax);
+    strip.setPixelColor(feederPos[i], whiteMax);
   if (ratio == 1)
   {
      SetStatusFeeder(orange);
@@ -243,12 +243,12 @@ void SetFeeder(int sheetNumberRemaining)
 void SetReception(int sheetNumber)
 {
   receptionCounter = sheetNumber;
-  if (sheetNumber > feederSheetMax)
+  if (sheetNumber > receptionSheetMax)
   {
-    sheetNumber = feederSheetMax;
+    sheetNumber = receptionSheetMax;
   }
 
-  int ratio = (int)(((double)sheetNumber / feederSheetMax) * 8);
+  int ratio = (int)(((double)sheetNumber / receptionSheetMax) * 8);
   int sizeLeds = (sizeof(receptionPos) / sizeof(receptionPos[0]));
   for (int i = 0; i < sizeLeds; i++)
     strip.setPixelColor(receptionPos[i], black);
@@ -259,7 +259,7 @@ void SetReception(int sheetNumber)
      SetStatusFeeder(orange);
   }
 
-  if (sheetNumber == feederSheetMax) // warning
+  if (sheetNumber == receptionSheetMax) // warning
     SetStatusReception(red);
 }
 
