@@ -309,7 +309,7 @@ void SetAllStatus(uint32_t statusAllColor)
 
 void Stop()
 {
-  SetAllStatus(red);
+  //SetAllStatus(red);
 }
 
 void Reset()
@@ -565,7 +565,7 @@ void SetStateText(int state)
     break;
 
   case 4:
-    sprintf(buf, "STOP");
+    sprintf(buf, "BLK");
     break;
   case 6:
     sprintf(buf, "LOG");
