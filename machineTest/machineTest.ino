@@ -52,7 +52,7 @@ char *msgTab[] =
         "state",
         "blocked",
         "help",
-        "WELCOME TO GROUP R&D !"};
+        "HAPPY NEW YEAR 2020 @ GROUP R&D !"};
 char *msgTab2[] =
     {
         "FS", //feederStack
@@ -842,7 +842,7 @@ void loop()
       AllBlack();
       mx.clear();
       bInit = true;
-      strcpy(messageDisp, "Yippie !!!! Thank you and welcome !!!");
+      strcpy(messageDisp, "IT'S NEW YEAR SOON @GROUP R&D !!!");
     }
     else if (strcmp(cmd, msgTab[4]) == 0) //speed
     {
@@ -890,14 +890,14 @@ void loop()
     // cmdString = "";
   }
   Reset();
-  Star();
+
   FeederBelt();
   Status();
   Chain();
   Feeder();
   Reception();
-  Ejection();
-  Cut();
+  //Ejection();
+  //Cut();
 
   if (currentState != 0 && currentState != 5)
   {
@@ -923,5 +923,6 @@ void loop()
   {
     AllBlack();
   }
+  Star();
   strip.show();
 }
