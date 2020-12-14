@@ -52,7 +52,7 @@ char *msgTab[] =
         "state",
         "blocked",
         "help",
-        "WELCOME @ GROUP R&D !"};
+        "GOODBYE 2020 ! @ GROUP R&D !"};
 char *msgTab2[] =
     {
         "FS", //feederStack
@@ -175,7 +175,7 @@ void Init()
   strip.show(); // Initialize all pixels to 'off'
   // init demo mode
   strcpy(messageDisp, msgTab[8]);
-  currentState = 0;
+  currentState = 5;
   SetStateText(currentState);
   for (int i = 0; i < 100; i++)
   {
