@@ -52,7 +52,7 @@ char *msgTab[] =
         "state",
         "blocked",
         "help",
-        "GOODBYE 2020 ! @ GROUP R&D !"};
+        "JOYEUSES FETES @ GROUP TECHNOLOGY !"};
 char *msgTab2[] =
     {
         "FS", //feederStack
@@ -430,7 +430,7 @@ void Status()
 void Star()
 {
   actualTime = millis();
-  if (currentState == 5 && ((actualTime - previousTimeStar) > 150))
+  if (currentState == 5 && ((actualTime - previousTimeStar) > 500))
   {
     for (int i = 0; i < NBLEDS; i++)
       strip.setPixelColor(i, random(0, 15) * 16, random(0, 15) * 16, random(0, 15) * 16, 0);
@@ -842,7 +842,7 @@ void loop()
       AllBlack();
       mx.clear();
       bInit = true;
-      strcpy(messageDisp, "IT'S NEW YEAR SOON @GROUP R&D !!!");
+      strcpy(messageDisp, "IT'S NEW YEAR SOON @GROUP TECHNOLOGY !!!");
     }
     else if (strcmp(cmd, msgTab[4]) == 0) //speed
     {
