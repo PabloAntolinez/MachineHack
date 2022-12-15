@@ -52,7 +52,7 @@ char *msgTab[] =
         "state",
         "blocked",
         "help",
-        "WELCOME @ GROUP R&D !"};
+        "WELCOME @ GROUP TECHNOLOGY !"};
 char *msgTab2[] =
     {
         "FS", //feederStack
