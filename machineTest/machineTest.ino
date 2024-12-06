@@ -16,59 +16,55 @@ uint32_t orange = strip.Color(255, 105, 0, 0);
 uint32_t whiteMax = strip.Color(255, 255, 255, 255);
 
 // declare led index tables for animations
-int feederPos[] =
-    {
-        7, 6, 5, 4, 3, 2, 1, 0};
-
-int feederStatusPos[] =
-    {
-        8, 9, 10};
-int chainPathPos[] =
-    {
-        15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30};
-
-int feederBeltPos[] =
-    {11, 12, 13, 14};
-
-int ejectionBeltPos[] =
-    {40, 41, 42, 43};
-
-int cutStatusPos[] =
-    {31, 32, 33};
-int ejectionStatusPos[] =
-    {34, 35, 36};
-int receptionStatusPos[] =
-    {37, 38, 39};
-int receptionPos[] =
-    {44, 45, 46, 47, 48, 49, 50, 51};
-
-char *msgTab[] =
-    {
-        "run",
-        "prod",
-        "sat",
-        "star",
-        "speed",
-        "state",
-        "blocked",
-        "help",
-        "WELCOME @ GROUP TECHNOLOGY !"};
-char *msgTab2[] =
-    {
-        "FS", //feederStack
-        "FM", //feederMax
-        "DS", //deliveryStack
-        "DM", //deliveryMax
-        "BW", //boxwasted
-        "WM", //wastedMax
-        "BP", //boxProduced
-        "FR", //feederRunning
-        "CS", //CurrentSpeed
-        "MS", // machineSpeed
-        "PR", //press
-        "EJ"  //ejection
+int feederPos[] = {
+  7, 6, 5, 4, 3, 2, 1, 0
 };
 
+int feederStatusPos[] = {
+  8, 9, 10
+};
+int chainPathPos[] = {
+  15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+};
+
+int feederBeltPos[] = { 11, 12, 13, 14 };
+
+int ejectionBeltPos[] = { 40, 41, 42, 43 };
+
+int cutStatusPos[] = { 31, 32, 33 };
+int ejectionStatusPos[] = { 34, 35, 36 };
+int receptionStatusPos[] = { 37, 38, 39 };
+int receptionPos[] = { 44, 45, 46, 47, 48, 49, 50, 51 };
+
+char *msgTab[] = {
+  "run",
+  "prod",
+  "sat",
+  "star",
+  "speed",
+  "state",
+  "blocked",
+  "help",
+  "IT'S NEW YEAR SOON @ GROUP TECHNOLOGY !!!",
+  "WELCOME @ GROUP TECHNOLOGY !"
+};
+char *msgTab2[] = {
+  "FS",  //feederStack
+  "FM",  //feederMax
+  "DS",  //deliveryStack
+  "DM",  //deliveryMax
+  "BW",  //boxwasted
+  "WM",  //wastedMax
+  "BP",  //boxProduced
+  "FR",  //feederRunning
+  "CS",  //CurrentSpeed
+  "MS",  // machineSpeed
+  "PR",  //press
+  "EJ"   //ejection
+};
+
+const int STARTSTATE = 5;
+const int STARTMESSAGE = 8;
 const int MAX_CMD_LENGTH = 512;
 char cmd[MAX_CMD_LENGTH];
 char messageDisp[MAX_CMD_LENGTH] = "0";
@@ -110,11 +106,12 @@ int machineSpeed = 1;
 int currentState = 0;
 String cmdString = "";
 int valueCmd = 0;
+uint32_t starStep = 0;
 // *************************************************** Use the MD_MAX72XX library to Display scrolling text ***************************************************
 
 #include <MD_MAX72xx.h>
 #include <SPI.h>
-#define DEMO_DELAY 5 // time to show each demo element in seconds
+#define DEMO_DELAY 5  // time to show each demo element in seconds
 
 // --------------------
 // MD_MAX72xx hardware definitions and object
@@ -124,11 +121,11 @@ int valueCmd = 0;
 //
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 8
-#define CLK_PIN 52  // or SCK
-#define DATA_PIN 51 // or MOSI
-#define CS_PIN 53   // or SS
+#define CLK_PIN 52   // or SCK
+#define DATA_PIN 51  // or MOSI
+#define CS_PIN 53    // or SS
 
-MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES); // SPI hardware interface
+MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);  // SPI hardware interface
 
 // --------------------
 // Constant parameters
@@ -136,21 +133,20 @@ MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES); // SPI hardware 
 // Various delays in milliseconds
 #define UNIT_DELAY 12
 #define SCROLL_DELAY (1 * UNIT_DELAY)
-#define CHAR_SPACING 1 // pixels between characters
-#define BUF_SIZE 512   // character buffer size
+#define CHAR_SPACING 1  // pixels between characters
+#define BUF_SIZE 512    // character buffer size
 
 // ========== General Variables ===========
 //
-uint32_t prevTimeAnim = 0;     // Used for remembering the millis() value in animations
-uint32_t prevTimeDemo = 0;     //  Used for remembering the millis() time in demo loop
-uint8_t timeDemo = DEMO_DELAY; // number of seconds left in this demo loop
+uint32_t prevTimeAnim = 0;      // Used for remembering the millis() value in animations
+uint32_t prevTimeDemo = 0;      //  Used for remembering the millis() time in demo loop
+uint8_t timeDemo = DEMO_DELAY;  // number of seconds left in this demo loop
 bool bInit = true;
 
 
 // *************************************************** Setup ***************************************************
 
-void setup()
-{
+void setup() {
   Serial.begin(9600);
   Serial.setTimeout(2000);
   // strip init
@@ -165,20 +161,17 @@ void setup()
 
 // *************************************************** functions ***************************************************
 
-void Init()
-{
+void Init() {
   mx.clear();
-  for (int i = 0; i < NBLEDS; i++)
-  {
+  for (int i = 0; i < NBLEDS; i++) {
     strip.setPixelColor(i, 0, 0, 0, 128);
   }
-  strip.show(); // Initialize all pixels to 'off'
+  strip.show();  // Initialize all pixels to 'off'
   // init demo mode
-  strcpy(messageDisp, msgTab[8]);
-  currentState = 0;
+  strcpy(messageDisp, msgTab[STARTMESSAGE]);
+  currentState = STARTSTATE;
   SetStateText(currentState);
-  for (int i = 0; i < 100; i++)
-  {
+  for (int i = 0; i < 100; i++) {
     SetBoxCounterDisp(i);
     delay(5);
   }
@@ -186,11 +179,9 @@ void Init()
   mx.clear();
 }
 
-void SetFeeder(int sheetNumberRemaining)
-{
+void SetFeeder(int sheetNumberRemaining) {
   feederCounter = sheetNumberRemaining;
-  if (feederCounter > feederSheetMax)
-  {
+  if (feederCounter > feederSheetMax) {
     feederCounter = feederSheetMax;
   }
   int ratio = (int)ceil(((double)sheetNumberRemaining / feederSheetMax) * 8);
@@ -199,19 +190,16 @@ void SetFeeder(int sheetNumberRemaining)
     strip.setPixelColor(feederPos[i], black);
   for (int i = 0; i < ratio; i++)
     strip.setPixelColor(feederPos[i], whiteMax);
-  if (ratio == 1)
-  {
+  if (ratio == 1) {
     SetStatusFeeder(orange);
   }
-  if (sheetNumberRemaining == 0) // warning
+  if (sheetNumberRemaining == 0)  // warning
     SetStatusFeeder(red);
 }
 
-void SetReception(int sheetNumber)
-{
+void SetReception(int sheetNumber) {
   receptionCounter = sheetNumber;
-  if (sheetNumber > receptionSheetMax)
-  {
+  if (sheetNumber > receptionSheetMax) {
     sheetNumber = receptionSheetMax;
   }
 
@@ -221,106 +209,88 @@ void SetReception(int sheetNumber)
     strip.setPixelColor(receptionPos[i], black);
   for (int i = 0; i < ratio; i++)
     strip.setPixelColor(receptionPos[i], whiteMax);
-  if (ratio == 8)
-  {
+  if (ratio == 8) {
     SetStatusFeeder(orange);
   }
 
-  if (sheetNumber == receptionSheetMax) // warning
+  if (sheetNumber == receptionSheetMax)  // warning
     SetStatusReception(red);
 }
 
-void SetStatusFeeder(uint32_t statusFeederColor)
-{
+void SetStatusFeeder(uint32_t statusFeederColor) {
   int sizeLeds = (sizeof(feederStatusPos) / sizeof(feederStatusPos[0]));
   SetAllLedsArray(feederStatusPos, sizeLeds, statusFeederColor);
 };
 
-void SetStatusReception(uint32_t statusReceptionColor)
-{
+void SetStatusReception(uint32_t statusReceptionColor) {
   int sizeLeds = (sizeof(receptionStatusPos) / sizeof(receptionStatusPos[0]));
   SetAllLedsArray(receptionStatusPos, sizeLeds, statusReceptionColor);
 };
 
-void SetStatusCut(uint32_t statusCutColor)
-{
+void SetStatusCut(uint32_t statusCutColor) {
   int sizeLeds = (sizeof(cutStatusPos) / sizeof(cutStatusPos[0]));
   SetAllLedsArray(cutStatusPos, sizeLeds, statusCutColor);
 };
 
-void SetStatusEjection(uint32_t statusEjectionColor)
-{
+void SetStatusEjection(uint32_t statusEjectionColor) {
   int sizeLeds = (sizeof(ejectionStatusPos) / sizeof(ejectionStatusPos[0]));
   SetAllLedsArray(ejectionStatusPos, sizeLeds, statusEjectionColor);
 };
 
-void SetAllLedsArray(int *arrayLed, int sizeArray, uint32_t color)
-{
-  for (size_t iLed = 0; iLed < sizeArray; iLed++)
-  {
+void SetAllLedsArray(int *arrayLed, int sizeArray, uint32_t color) {
+  for (size_t iLed = 0; iLed < sizeArray; iLed++) {
     strip.setPixelColor(arrayLed[iLed], color);
   }
 }
 
-void SetAllStatus(uint32_t statusAllColor)
-{
+void SetAllStatus(uint32_t statusAllColor) {
   SetStatusCut(statusAllColor);
   SetStatusEjection(statusAllColor);
   SetStatusFeeder(statusAllColor);
   SetStatusReception(statusAllColor);
 }
 
-void Stop()
-{
+void Stop() {
   //SetAllStatus(red);
 }
 
-void Reset()
-{
+void Reset() {
   actualTime = millis();
-  if (isResetOn)
-  {
+  if (isResetOn) {
     SetAllStatus(blue);
     isResetOn = false;
     isResetToggle = true;
     previousTimeReset = actualTime;
   }
-  if (isResetToggle && ((actualTime - previousTimeReset) > 1000))
-  {
+  if (isResetToggle && ((actualTime - previousTimeReset) > 1000)) {
     SetAllStatus(black);
     isResetToggle = false;
   }
 }
 
-void Run()
-{
+void Run() {
   SetAllStatus(green);
 }
 
-void Feeder()
-{
+void Feeder() {
   actualTime = millis();
   int sizeLeds = (sizeof(feederPos) / sizeof(feederPos[0]));
-  if ((currentState == 0) && (chainStep == 0 || chainStep == 8) && ((actualTime - previousTimeFeeder) > ((12 / machineSpeed) * 25)))
-  {
+  if ((currentState == 0) && (chainStep == 0 || chainStep == 8) && ((actualTime - previousTimeFeeder) > ((12 / machineSpeed) * 25))) {
     SetFeeder((sizeLeds - feederStep) * 125 / 10 + 1);
     feederStep = (feederStep + 1) % sizeLeds;
     previousTimeFeeder = actualTime;
   }
 }
 
-void FeederBelt()
-{
+void FeederBelt() {
   actualTime = millis();
   int sizeLeds = (sizeof(feederBeltPos) / sizeof(feederBeltPos[0]));
-  if (feederBeltStep == sizeLeds)
-  {
+  if (feederBeltStep == sizeLeds) {
     feederBeltStep = 0;
     isBoxOnFeeder = false;
     strip.setPixelColor(feederBeltPos[sizeLeds - 1], black);
   }
-  if ((currentState == 0 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeFeederBelt) > ((6 / machineSpeed) * 10)) && isBoxOnFeeder)
-  {
+  if ((currentState == 0 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeFeederBelt) > ((6 / machineSpeed) * 10)) && isBoxOnFeeder) {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(feederBeltPos[i], black);
     strip.setPixelColor(feederBeltPos[feederBeltStep], whiteMax);
@@ -329,43 +299,31 @@ void FeederBelt()
   }
 }
 
-void Chain()
-{
+void Chain() {
   actualTime = millis();
   int sizeLeds = (sizeof(chainPathPos) / sizeof(chainPathPos[0]));
-  if ((currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeChain) > ((6 / machineSpeed) * 25)))
-  {
+  if ((currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeChain) > ((6 / machineSpeed) * 25))) {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(chainPathPos[i], black);
     strip.setPixelColor(chainPathPos[chainStep], (chainStep >= 0 && chainStep <= 6 && (currentState == 0 || currentState == 2 || currentState == 3)) ? whiteMax : green);
     strip.setPixelColor(chainPathPos[(chainStep + sizeLeds / 2) % sizeLeds], (((chainStep + sizeLeds / 2) % sizeLeds) >= 0 && ((chainStep + sizeLeds / 2) % sizeLeds) <= 6 && (currentState == 0 || currentState == 2 || currentState == 3)) ? whiteMax : green);
     chainStep = (chainStep + 1) % (sizeLeds);
-    if (chainStep == 15 || chainStep == 7)
-    {
+    if (chainStep == 15 || chainStep == 7) {
       isBoxOnFeeder = true;
       isBoxOnEjection = true;
     }
-    if (currentState == 0 || currentState == 2 || currentState == 3)
-    {
+    if (currentState == 0 || currentState == 2 || currentState == 3) {
       SetAllStatus(darkGreen);
-      if (chainStep == 7 || (chainStep + 8) % 16 == 7)
-      {
+      if (chainStep == 7 || (chainStep + 8) % 16 == 7) {
         SetStatusFeeder(green);
-      }
-      else if (chainStep == 2 || (chainStep + 8) % 16 == 2)
-      {
+      } else if (chainStep == 2 || (chainStep + 8) % 16 == 2) {
         SetStatusCut(green);
-      }
-      else if (chainStep == 4 || (chainStep + 8) % 16 == 4)
-      {
+      } else if (chainStep == 4 || (chainStep + 8) % 16 == 4) {
         SetStatusEjection(green);
-      }
-      else if (chainStep == 6 || (chainStep + 8) % 16 == 6)
-      {
+      } else if (chainStep == 6 || (chainStep + 8) % 16 == 6) {
         SetStatusReception(green);
       }
-      if (currentState == 3)
-      {
+      if (currentState == 3) {
         SetStatusReception(orange);
       }
     }
@@ -374,31 +332,26 @@ void Chain()
   }
 }
 
-void Reception()
-{
+void Reception() {
   actualTime = millis();
   int sizeLeds = (sizeof(receptionPos) / sizeof(receptionPos[0]));
-  if ((currentState == 0) && (chainStep == 6 || chainStep == 14) && ((actualTime - previousTimeReception) > ((12 / machineSpeed) * 25)))
-  {
+  if ((currentState == 0) && (chainStep == 6 || chainStep == 14) && ((actualTime - previousTimeReception) > ((12 / machineSpeed) * 25))) {
     SetReception(receptionStep * 125 / 10 + 1);
     receptionStep = (receptionStep + 1) % sizeLeds;
     previousTimeReception = actualTime;
   }
 }
 
-void EjectionBelt()
-{
+void EjectionBelt() {
   actualTime = millis();
   int sizeLeds = (sizeof(ejectionBeltPos) / sizeof(ejectionBeltPos[0]));
-  if (ejectionStep == sizeLeds)
-  {
+  if (ejectionStep == sizeLeds) {
     ejectionStep = 0;
     isBoxOnEjection = false;
     strip.setPixelColor(ejectionBeltPos[sizeLeds - 1], black);
   }
 
-  if ((currentState == 0 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeEjectionBelt) > ((6 / machineSpeed) * 10)) && isBoxOnEjection)
-  {
+  if ((currentState == 0 || currentState == 2 || currentState == 3) && ((actualTime - previousTimeEjectionBelt) > ((6 / machineSpeed) * 10)) && isBoxOnEjection) {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(ejectionBeltPos[i], black);
     strip.setPixelColor(ejectionBeltPos[ejectionStep], whiteMax);
@@ -407,30 +360,42 @@ void EjectionBelt()
   }
 }
 
-void Status()
-{
+void Status() {
   actualTime = millis();
-  switch (currentState)
-  {
-  case 1:
-    SetStatusCut(darkGreen);
-    SetStatusEjection(darkGreen);
-    SetStatusReception(darkGreen);
-    SetStatusFeeder(black);
-    break;
+  switch (currentState) {
+    case 1:
+      SetStatusCut(darkGreen);
+      SetStatusEjection(darkGreen);
+      SetStatusReception(darkGreen);
+      SetStatusFeeder(black);
+      break;
 
-  case 4:
-    SetAllStatus(red);
-    break;
+    case 4:
+      SetAllStatus(red);
+      break;
 
-  default:
-    break;
+    default:
+      break;
   }
 }
-void Star()
-{
+void Star() {
   actualTime = millis();
-  if (currentState == 5 && ((actualTime - previousTimeStar) > 150))
+
+  // if (currentState == 5 && ((actualTime - previousTimeStar) > 20)) {
+  //    strip.clear();
+  //     strip.setPixelColor(starStep, 255, 0, 0, 0);
+  //     strip.show();
+  //   starStep += 1;
+  //   starStep = starStep % NBLEDS ;
+  //   previousTimeStar = actualTime;
+  // }
+  // if( starStep >= NBLEDS*100)
+  //   starStep = 0 ;
+    //  strip.clear();
+    // for (int i = 0; i < NBLEDS; i++)
+    //   strip.setPixelColor(i, 255,0, 0, 0);
+
+  if (currentState == 5 && ((actualTime - previousTimeStar) > 600))
   {
     for (int i = 0; i < NBLEDS; i++)
       strip.setPixelColor(i, random(0, 15) * 16, random(0, 15) * 16, random(0, 15) * 16, 0);
@@ -439,99 +404,87 @@ void Star()
   }
 }
 
-void AllBlack()
-{
+void AllBlack() {
   for (int i = 0; i < NBLEDS; i++)
     strip.setPixelColor(i, black);
   strip.show();
 }
 
-void Ejection()
-{
-  switch (statusEjection)
-  {
-  case 0:
-    SetStatusEjection(green);
-    break;
-  case 1:
-    SetStatusEjection(orange);
-    break;
-  case 2:
-    SetStatusEjection(red);
-    break;
-  default:
-    break;
+void Ejection() {
+  switch (statusEjection) {
+    case 0:
+      SetStatusEjection(green);
+      break;
+    case 1:
+      SetStatusEjection(orange);
+      break;
+    case 2:
+      SetStatusEjection(red);
+      break;
+    default:
+      break;
   }
 }
 
-void Cut()
-{
-  switch (statusPress)
-  {
-  case 0:
-    SetStatusCut(green);
-    break;
-  case 1:
-    SetStatusCut(orange);
-    break;
-  case 2:
-    SetStatusCut(red);
-    break;
-  default:
-    break;
+void Cut() {
+  switch (statusPress) {
+    case 0:
+      SetStatusCut(green);
+      break;
+    case 1:
+      SetStatusCut(orange);
+      break;
+    case 2:
+      SetStatusCut(red);
+      break;
+    default:
+      break;
   }
 }
 
-void SetStateText(int state)
-{
+void SetStateText(int state) {
   char buf[12];
-  switch (state)
-  {
-  case 0:
-    sprintf(buf, "Hello !");
-    break;
-  case 1:
-    sprintf(buf, "RUN");
-    break;
+  switch (state) {
+    case 0:
+      sprintf(buf, "Hello !");
+      break;
+    case 1:
+      sprintf(buf, "RUN");
+      break;
 
-  case 2:
-    sprintf(buf, "PROD");
-    break;
+    case 2:
+      sprintf(buf, "PROD");
+      break;
 
-  case 3:
-    sprintf(buf, "SAT");
-    break;
+    case 3:
+      sprintf(buf, "SAT");
+      break;
 
-  case 4:
-    sprintf(buf, "BLK");
-    break;
-  case 6:
-    sprintf(buf, "LOG");
-    break;
-  default:
-    break;
+    case 4:
+      sprintf(buf, "BLK");
+      break;
+    case 6:
+      sprintf(buf, "LOG");
+      break;
+    default:
+      break;
   }
   PrintText(4, 7, buf);
 }
 
-void SetCurrentState(int state)
-{
+void SetCurrentState(int state) {
   currentState = state;
 }
-void SetBoxCounter(int counter)
-{
+void SetBoxCounter(int counter) {
   boxCounter = counter;
 }
 
-void SetWastedCounter(int counter)
-{
+void SetWastedCounter(int counter) {
   wasteCounter = counter;
 }
 
-void Waste()
-{
-  if (wasteCounter > wasteSheetMax)
-  {
+void Waste() {
+  if (wasteCounter > wasteSheetMax) {
     wasteCounter = wasteSheetMax;
   }
 
@@ -541,20 +494,18 @@ void Waste()
     strip.setPixelColor(ejectionBeltPos[i], black);
   for (int i = 0; i < ratio; i++)
     strip.setPixelColor(ejectionBeltPos[sizeLeds - i - 1], whiteMax);
-  if (ratio == 4)
-  {
+  if (ratio == 4) {
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(ejectionBeltPos[i], orange);
   }
-  if (wasteCounter == wasteSheetMax) // warning
+  if (wasteCounter == wasteSheetMax)  // warning
     for (int i = 0; i < sizeLeds; i++)
       strip.setPixelColor(ejectionBeltPos[i], red);
 }
 
-void SetBoxCounterDisp(int counter)
-{
+void SetBoxCounterDisp(int counter) {
   char buf[6];
-  sprintf(buf, "%04d", counter); // modified Ò font to display nothing
+  sprintf(buf, "%04d", counter);  // modified Ò font to display nothing
   //Serial.println(buf);
   PrintText(0, 2, buf);
 }
@@ -571,50 +522,47 @@ void PrintText(uint8_t modStart, uint8_t modEnd, char *pMsg)
   //mx.clear();
   mx.control(modStart, modEnd, MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
 
-  do // finite state machine to print the characters in the space available
+  do  // finite state machine to print the characters in the space available
   {
-    switch (state)
-    {
-    case 0: // Load the next character from the font table
-      // if we reached end of message, reset the message pointer
-      if (*pMsg == '\0')
-      {
-        showLen = col - (modEnd * COL_SIZE); // padding characters
-        state = 2;
+    switch (state) {
+      case 0:  // Load the next character from the font table
+        // if we reached end of message, reset the message pointer
+        if (*pMsg == '\0') {
+          showLen = col - (modEnd * COL_SIZE);  // padding characters
+          state = 2;
+          break;
+        }
+
+        // retrieve the next character form the font file
+        showLen = mx.getChar(*pMsg++, sizeof(cBuf) / sizeof(cBuf[0]), cBuf);
+        curLen = 0;
+        state++;
+        // !! deliberately fall through to next state to start displaying
+
+      case 1:  // display the next part of the character
+        mx.setColumn(col--, cBuf[curLen++]);
+
+        // done with font character, now display the space between chars
+        if (curLen == showLen) {
+          showLen = CHAR_SPACING;
+          state = 2;
+        }
         break;
-      }
 
-      // retrieve the next character form the font file
-      showLen = mx.getChar(*pMsg++, sizeof(cBuf) / sizeof(cBuf[0]), cBuf);
-      curLen = 0;
-      state++;
-      // !! deliberately fall through to next state to start displaying
+      case 2:  // initialize state for displaying empty columns
+        curLen = 0;
+        state++;
+        // fall through
 
-    case 1: // display the next part of the character
-      mx.setColumn(col--, cBuf[curLen++]);
+      case 3:  // display inter-character spacing or end of message padding (blank columns)
+        mx.setColumn(col--, 0);
+        curLen++;
+        if (curLen == showLen)
+          state = 0;
+        break;
 
-      // done with font character, now display the space between chars
-      if (curLen == showLen)
-      {
-        showLen = CHAR_SPACING;
-        state = 2;
-      }
-      break;
-
-    case 2: // initialize state for displaying empty columns
-      curLen = 0;
-      state++;
-      // fall through
-
-    case 3: // display inter-character spacing or end of message padding (blank columns)
-      mx.setColumn(col--, 0);
-      curLen++;
-      if (curLen == showLen)
-        state = 0;
-      break;
-
-    default:
-      col = -1; // this definitely ends the do loop
+      default:
+        col = -1;  // this definitely ends the do loop
     }
   } while (col >= (modStart * COL_SIZE));
 
@@ -632,8 +580,7 @@ bool scrollText(bool bInit, char *pmsg)
   uint8_t colData;
 
   // are we initializing?
-  if (bInit)
-  {
+  if (bInit) {
     resetMatrix();
     strcpy(curMessage, pmsg);
     state = 0;
@@ -646,41 +593,38 @@ bool scrollText(bool bInit, char *pmsg)
     return (bInit);
 
   // scroll the display
-  mx.transform(MD_MAX72XX::TSL); // scroll along
-  prevTimeAnim = millis();       // starting point for next time
+  mx.transform(MD_MAX72XX::TSL);  // scroll along
+  prevTimeAnim = millis();        // starting point for next time
 
   // now run the finite state machine to control what we do
-  switch (state)
-  {
-  case 0: // Load the next character from the font table
-    showLen = mx.getChar(*p++, sizeof(cBuf) / sizeof(cBuf[0]), cBuf);
-    curLen = 0;
-    state = 1;
-
-    // !! deliberately fall through to next state to start displaying
-
-  case 1: // display the next part of the character
-    colData = cBuf[curLen++];
-    mx.setColumn(0, colData);
-    if (curLen == showLen)
-    {
-      showLen = ((*p != '\0') ? CHAR_SPACING : mx.getColumnCount() - 1);
+  switch (state) {
+    case 0:  // Load the next character from the font table
+      showLen = mx.getChar(*p++, sizeof(cBuf) / sizeof(cBuf[0]), cBuf);
       curLen = 0;
-      state = 2;
-    }
-    break;
+      state = 1;
 
-  case 2: // display inter-character spacing (blank column) or scroll off the display
-    mx.setColumn(0, 0);
-    if (++curLen == showLen)
-    {
+      // !! deliberately fall through to next state to start displaying
+
+    case 1:  // display the next part of the character
+      colData = cBuf[curLen++];
+      mx.setColumn(0, colData);
+      if (curLen == showLen) {
+        showLen = ((*p != '\0') ? CHAR_SPACING : mx.getColumnCount() - 1);
+        curLen = 0;
+        state = 2;
+      }
+      break;
+
+    case 2:  // display inter-character spacing (blank column) or scroll off the display
+      mx.setColumn(0, 0);
+      if (++curLen == showLen) {
+        state = 0;
+        bInit = (*p == '\0');
+      }
+      break;
+
+    default:
       state = 0;
-      bInit = (*p == '\0');
-    }
-    break;
-
-  default:
-    state = 0;
   }
   return (bInit);
 }
@@ -689,8 +633,7 @@ bool scrollText(bool bInit, char *pmsg)
 
 // ========== Control routines ===========
 //
-void resetMatrix(void)
-{
+void resetMatrix(void) {
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
   mx.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
   mx.clear();
@@ -724,133 +667,110 @@ void resetMatrix(void)
 //         };
 
 // *************************************************** Loop ***************************************************
-void loop()
-{
+void loop() {
 
   char byteIn = 0;
   bool finished = false;
-  while (Serial.available() > 0 && !finished)
-  {
+  while (Serial.available() > 0 && !finished) {
     byteIn = Serial.read();
-    if (byteIn == '\n')
-    {
+    if (byteIn == '\n') {
       stringComplete = true;
       finished = true;
       cmd[cmdIndex++] = '\0';
       cmdIndex = 0;
+    } else {
+      cmd[cmdIndex++] = byteIn;
+      ;
     }
-    else
-    {
-      cmd[cmdIndex++] = byteIn; ;
-    }
-
   }
 
-  if (stringComplete == true)
-  {
+  if (stringComplete == true) {
     // Serial.print("cmd : ");
     // Serial.println( cmd );
     stringComplete = false;
 
     //***********************************************command machine ***************************************************
 
-    if (strncmp(cmd, msgTab2[0], 2) == 0) //         "FS"//feederStack
+    if (strncmp(cmd, msgTab2[0], 2) == 0)  //         "FS"//feederStack
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       feederCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[1], 2) == 0) //         "FM",//feederMax
+    } else if (strncmp(cmd, msgTab2[1], 2) == 0)  //         "FM",//feederMax
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       feederSheetMax = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[2], 2) == 0) //         "DS",//deliveryStack
+    } else if (strncmp(cmd, msgTab2[2], 2) == 0)  //         "DS",//deliveryStack
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       receptionCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[3], 2) == 0) //         "DM",//deliveryMax
+    } else if (strncmp(cmd, msgTab2[3], 2) == 0)  //         "DM",//deliveryMax
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       receptionSheetMax = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[4], 2) == 0) //         "BW",//boxwasted
+    } else if (strncmp(cmd, msgTab2[4], 2) == 0)  //         "BW",//boxwasted
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       wasteCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[5], 2) == 0) //         "WM",//wastedMax
+    } else if (strncmp(cmd, msgTab2[5], 2) == 0)  //         "WM",//wastedMax
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       wasteSheetMax = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[6], 2) == 0) //         "BP",//boxProduced
+    } else if (strncmp(cmd, msgTab2[6], 2) == 0)  //         "BP",//boxProduced
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       boxCounter = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[7], 2) == 0) //         "FR",//feederRunning
+    } else if (strncmp(cmd, msgTab2[7], 2) == 0)  //         "FR",//feederRunning
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       //Serial.println("not implemented");
-    }
-    else if (strncmp(cmd, msgTab2[8], 2) == 0) //         "CS", //CurrentSpeed
+    } else if (strncmp(cmd, msgTab2[8], 2) == 0)  //         "CS", //CurrentSpeed
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       machineSpeed = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[9], 2) == 0) //         "MS" // machineState
+    } else if (strncmp(cmd, msgTab2[9], 2) == 0)  //         "MS" // machineState
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       mx.clear();
       currentState = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[10], 2) == 0) //         "PR" // press
+    } else if (strncmp(cmd, msgTab2[10], 2) == 0)  //         "PR" // press
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       statusPress = valueCmd;
-    }
-    else if (strncmp(cmd, msgTab2[11], 2) == 0) //         "EJ" // ejection
+    } else if (strncmp(cmd, msgTab2[11], 2) == 0)  //         "EJ" // ejection
     {
       sscanf(cmd + 3, "%i", &valueCmd);
       statusEjection = valueCmd;
-    }
-    else if (strcmp(cmd, msgTab[0]) == 0) //run
+    } else if (strcmp(cmd, msgTab[0]) == 0)  //run
     {
       currentState = 1;
       Serial.println("Command received: run");
       mx.clear();
-    }
-    else if (strcmp(cmd, msgTab[1]) == 0) //prod
+    } else if (strcmp(cmd, msgTab[1]) == 0)  //prod
     {
       Serial.println("Command received: prod");
       currentState = 2;
       AllBlack();
       mx.clear();
-    }
-    else if (strcmp(cmd, msgTab[2]) == 0) //sat
+    } else if (strcmp(cmd, msgTab[2]) == 0)  //sat
     {
       Serial.println("Command received: sat");
       currentState = 3;
       AllBlack();
       mx.clear();
-    }
-    else if (strcmp(cmd, msgTab[3]) == 0) //star
+    } else if (strcmp(cmd, msgTab[3]) == 0)  //star
     {
       Serial.println("Command received: star");
       currentState = 5;
       AllBlack();
       mx.clear();
       bInit = true;
-      strcpy(messageDisp, "IT'S NEW YEAR SOON @GROUP R&D !!!");
-    }
-    else if (strcmp(cmd, msgTab[4]) == 0) //speed
+      strcpy(messageDisp, "IT'S NEW YEAR SOON @ GROUP TECHONOLOGY !!!");
+    } else if (strcmp(cmd, msgTab[4]) == 0)  //speed
     {
       Serial.println("Command received: speed");
       machineSpeed = (machineSpeed + 1) % 4;
       bInit = true;
-    }
-    else if (strcmp(cmd, msgTab[5]) == 0) //state
+    } else if (strcmp(cmd, msgTab[5]) == 0)  //state
     {
       Serial.println("Command received: state");
       currentState = (currentState + 1) % 5;
@@ -858,31 +778,26 @@ void loop()
         strcpy(messageDisp, msgTab[8]);
       mx.clear();
       bInit = true;
-    }
-    else if (strcmp(cmd, msgTab[6]) == 0) //blocked
+    } else if (strcmp(cmd, msgTab[6]) == 0)  //blocked
     {
       Serial.println("Command received: blocked");
       currentState = 4;
       mx.clear();
       bInit = true;
-    }
-    else if (strcmp(cmd, msgTab[7]) == 0) //help
+    } else if (strcmp(cmd, msgTab[7]) == 0)  //help
     {
       Serial.println("Command received: help");
       for (int i = 0; i < sizeof(msgTab) / sizeof(msgTab[0]); i++)
         Serial.println(msgTab[i]);
       bInit = true;
-    }
-    else if (strcmp(cmd, "init") == 0) //init
+    } else if (strcmp(cmd, "init") == 0)  //init
     {
       Serial.println("Command received: init");
       Init();
     }
 
-    else if (strcmp(cmd, "") != 0)
-    {
-      if (currentState == 0 || currentState == 5)
-      {
+    else if (strcmp(cmd, "") != 0) {
+      if (currentState == 0 || currentState == 5) {
 
         strcpy(messageDisp, cmd);
       }
@@ -899,19 +814,15 @@ void loop()
   //Ejection();
   //Cut();
 
-  if (currentState != 0 && currentState != 5)
-  {
+  if (currentState != 0 && currentState != 5) {
     Waste();
   }
   if (currentState == 0 || currentState == 3)
     EjectionBelt();
 
-  if (currentState == 0 || currentState == 5)
-  {
+  if (currentState == 0 || currentState == 5) {
     bInit = scrollText(bInit, messageDisp);
-  }
-  else
-  {
+  } else {
     SetStateText(currentState);
     SetBoxCounterDisp(boxCounter);
     SetFeeder(feederCounter);
@@ -919,8 +830,7 @@ void loop()
     Ejection();
     Cut();
   }
-  if (currentState == 6)
-  {
+  if (currentState == 6) {
     AllBlack();
   }
   Star();
